@@ -61,3 +61,14 @@ LLM / 工具 / OS 自动化
 - [ ] gateway 鉴权与会话路由
 - [ ] client 多 agent 切换 UI
 - [ ] 多 agent 协作与配置中心
+
+## Windows 构建产物
+
+通过 GitHub Actions 在 `windows-latest` runner 上自动构建（无需本地 Rust/MSVC 工具链）。
+
+- 触发：push 到 `main` 或 `dev-*` 分支，或在 GitHub UI 手动 Run workflow
+- 产物：`.msi` 安装包（Windows Installer）+ NSIS `.exe` 安装包
+- 占位图标源：`client/assets/icon-source.png`（CI 上由 `tauri icon` 现场生成全套 icons）
+- 详细 workflow：`.github/workflows/build-windows.yml`
+
+下载方式：push 后在 GitHub 仓库页面 → Actions → 选对应 run → Artifacts 下载 `my-ai-windows-msi` 与 `my-ai-windows-nsis`。
