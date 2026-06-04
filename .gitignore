@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build artifacts
+dist/
+build/
+out/
+target/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Vite / TS
+.vite/
+*.tsbuildinfo
+
+# Env / secrets — never commit
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+
+# IDE / Agent tooling
+.vscode/
+.idea/
+.claude/
+*.swp
+.DS_Store
+
+# Project-generated data (per CLAUDE.md)
+data/
+screenshots/
+tmp/
+logs/
+*.log
+
+# Coverage
+coverage/
+.nyc_output/

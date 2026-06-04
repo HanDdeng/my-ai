@@ -1,0 +1,27 @@
+[package]
+name = "my-ai-client"
+version = "0.0.0"
+description = "my-ai desktop client"
+authors = ["handdeng"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "my_ai_client_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.1", features = [] }
+tauri-plugin-http = { version = "2.0", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
