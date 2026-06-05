@@ -52,7 +52,7 @@ jobs:
 
       # 扫 git 历史找误提交的 API key / token / 私钥。PR 合入前必过。
       - name: Secret scan
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
