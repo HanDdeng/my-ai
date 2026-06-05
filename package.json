@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r run typecheck",
     "clean": "pnpm -r exec rimraf dist node_modules .turbo",
+    "setup": "node scripts/setup.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

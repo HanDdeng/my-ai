@@ -12,11 +12,22 @@
 
 ## 快速开始
 
+**前置**（三平台一致）：
+
+- Node.js >= 20（推荐 24，与 CI 一致；项目根有 `.nvmrc`，`nvm use` / `fnm use` 自动切）
+- pnpm 10（推荐 `corepack enable && corepack prepare pnpm@10.0.0 --activate`，
+  让 Node 自带 corepack 自动管理；`package.json` 的 `packageManager` 字段已锁版本）
+- macOS / Linux：自带 bash
+- Windows：**用 Git Bash**（Git for Windows 自带），别用 cmd / PowerShell 跑 git 钩子
+
 ```bash
-# 安装依赖（需 pnpm 9+）
+# 1. 装依赖（首次）
 pnpm install
 
-# 并行启动所有子项目开发模式
+# 2. 复制 .env 模板（已存在则跳过）
+pnpm run setup
+
+# 3. 并行启动所有子项目开发模式
 pnpm dev
 
 # 单独启动
@@ -29,6 +40,21 @@ pnpm build
 pnpm typecheck
 pnpm test
 ```
+
+### 各平台首次启动注意
+
+- **macOS**：若 `pnpm dev` 报 `pnpm: command not found`，
+  跑 `corepack enable && corepack prepare pnpm@10.0.0 --activate`。
+  Tauri 桌面端要本地构建时需装 Xcode CLI（`xcode-select --install`）和 Rust 工具链。
+- **Windows**：
+  - 装 [Git for Windows](https://git-scm.com/download/win) 提供 Git Bash。
+  - 务必在 Git Bash 里跑 `pnpm install` / `pnpm dev` / `git commit`，
+    PowerShell 与 cmd 不能跑 husky 钩子。
+  - Tauri 桌面端要本地构建时需装 [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)、
+    Visual Studio Build Tools（C++ workload）和 Rust 工具链。
+  - pnpm 在 Windows 上需要符号链接权限（开发者模式或管理员）；
+    否则 `pnpm install` 报 `EPERM` 时按提示开开发者模式。
+- **Linux**：常规装 Node + pnpm 即可；Tauri 桌面端构建依赖 `libwebkit2gtk-4.1-dev` 等系统包。
 
 ## 数据流
 

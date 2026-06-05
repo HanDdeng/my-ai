@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # pre-commit 钩子（dev 分支部署专用闸门）：
 #   1) lint-staged：暂存文件跑 ESLint + Prettier。
 #   2) pnpm -r run typecheck：全工作区 tsc 校验。

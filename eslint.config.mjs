@@ -90,11 +90,30 @@ export default [
     },
   },
   // 根目录配置文件：commitlint.config.js / lint-staged 等用 CommonJS / Node globals。
+  // .mjs 是 ESM，.cjs/.js 默认按 CommonJS 处理。
   {
-    files: ['commitlint.config.{js,cjs,mjs}', '*.config.{js,cjs,mjs}', '**/*.config.{js,cjs,mjs}'],
+    files: ['commitlint.config.{js,cjs}', '*.config.{js,cjs}', '**/*.config.{js,cjs}'],
     languageOptions: {
       globals: { ...globals.node },
       sourceType: 'commonjs',
+    },
+  },
+  {
+    files: ['commitlint.config.mjs', '*.config.mjs', '**/*.config.mjs'],
+    languageOptions: {
+      globals: { ...globals.node },
+      sourceType: 'module',
+    },
+  },
+  // scripts/*.mjs：CLI 脚本，按 ESM 处理并放行 console。
+  {
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: { ...globals.node },
+      sourceType: 'module',
+    },
+    rules: {
+      'no-console': 'off',
     },
   },
   // 测试文件：放宽 any / 魔法数字等约束，便于断言。
