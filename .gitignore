@@ -1,0 +1,47 @@
+# 依赖目录
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+build/
+out/
+target/
+
+# Tauri 临时/生成文件
+src-tauri/target/
+src-tauri/gen/
+
+# Vite / TS 临时
+.vite/
+*.tsbuildinfo
+
+# 环境变量与证书——绝不入仓
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+
+# IDE / Agent 工具
+# .vscode 整体忽略用户私有配置（settings.json / launch.json 等），
+# 但放行 extensions.json 这类需要团队共享的文件。
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+.claude/
+*.swp
+.DS_Store
+
+# 项目生成数据（按 CLAUDE.md 约定不进仓）
+data/
+screenshots/
+tmp/
+logs/
+*.log
+
+# 测试覆盖率
+coverage/
+.nyc_output/

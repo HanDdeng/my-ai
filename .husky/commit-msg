@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# commit-msg 钩子：校验 commit message 符合 Conventional Commits 规范。
+# pre-commit 之后、commit 完成之前触发；不通过会拒绝本次提交。
+pnpm exec commitlint --edit "$1"
