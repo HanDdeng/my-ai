@@ -6,7 +6,10 @@ on:
   workflow_dispatch:
 
 env:
-  # 业务代码与 actions v5/v6 一律用 Node 24 LTS；不再需要强制。
+  # 业务代码与 actions v5/v6 一律用 Node 24 LTS；
+  # 当前 GitHub runner 默认仍以 Node 20 跑 actions v5（v5 自身尚未完全迁移到 Node 24），
+  # 需显式强制。GitHub 会在 2026-06-16 后默认启用。
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   NODE_VERSION: '24'
 
 permissions:
