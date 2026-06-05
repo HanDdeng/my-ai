@@ -1,7 +1,12 @@
-# Dependabot 配置：每周一自动检查并开 PR 升级依赖。
-# 升级到 dev 分支即可，pre-commit 三道闸会先拦下 break 的升级。
+# Dependabot 配置：v1 阶段整体关闭（v1 太早期，依赖没稳定下来，
+# 每周一开 5+ 个 PR 噪音太大且 major 升级容易 break）。
+# v2 起稳定后重新评估：
+#   - 调成 monthly + open-pull-requests-limit: 1
+#   - 或加 ignore 规则只放行 minor/patch
+# 注意 enabled: false 只关 version-updates，不关 security-updates。
 
 version: 2
+enabled: false
 
 updates:
   # 根 package.json（共享工具链：prettier / husky / lint-staged / commitlint / eslint / ts）。

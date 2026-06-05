@@ -1,10 +1,14 @@
 name: build
 
 on:
-  # CI 只在向主分支发起 PR 时才跑，避免 dev-* 频繁推送浪费 CI 分钟。
-  # 合入 main 之后需要再次校验可手动 workflow_dispatch。
+  # CI 触发规则：仅当 PR 目标分支是 main。
+  # 含 opened / synchronize / reopened 三种 PR 活动；push 事件不监听，
+  # 避免 dev-* 频繁推送浪费 CI 分钟。
   pull_request:
+    types: [opened, synchronize, reopened]
     branches: [main]
+  # workflow_dispatch 仅供"已合入 main 之后再次校验"或紧急排查用，
+  # 不属于正常开发循环的一部分。
   workflow_dispatch:
 
 env:
