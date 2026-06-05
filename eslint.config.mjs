@@ -89,6 +89,14 @@ export default [
       globals: { ...globals.node },
     },
   },
+  // 根目录配置文件：commitlint.config.js / lint-staged 等用 CommonJS / Node globals。
+  {
+    files: ['commitlint.config.{js,cjs,mjs}', '*.config.{js,cjs,mjs}', '**/*.config.{js,cjs,mjs}'],
+    languageOptions: {
+      globals: { ...globals.node },
+      sourceType: 'commonjs',
+    },
+  },
   // 测试文件：放宽 any / 魔法数字等约束，便于断言。
   {
     files: ['**/*.test.ts', '**/*.spec.ts', '**/test/**/*.ts'],

@@ -25,7 +25,11 @@ src-tauri/gen/
 *.crt
 
 # IDE / Agent 工具
-.vscode/
+# .vscode 整体忽略用户私有配置（settings.json / launch.json 等），
+# 但放行 extensions.json 这类需要团队共享的文件。
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
 .idea/
 .claude/
 *.swp
