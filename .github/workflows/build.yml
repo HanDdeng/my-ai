@@ -27,8 +27,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # fetch-depth: 0 让 gitleaks 能算 PR base..head 的 commit 范围；
+      # 默认 1（浅克隆）下 gitleaks 找不到 base commit，会 fatal: unknown revision。
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
