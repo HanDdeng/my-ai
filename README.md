@@ -4,11 +4,11 @@
 
 ## 目录结构
 
-| 目录 | 职责 | 技术栈 |
-|------|------|--------|
-| `client/` | 桌面应用，UI 与本地系统集成 | Tauri 2 + React 18 + TypeScript + Vite |
-| `gateway/` | 多客户端访问 core 的网关层，负责路由、鉴权、协议转换、流式代理 | Node.js 20 + Fastify 4 + TypeScript |
-| `core/` | agent 核心：会话、工具、LLM 调用、OS 自动化 | Node.js 20 + Fastify 4 + TypeScript |
+| 目录       | 职责                                                           | 技术栈                                 |
+| ---------- | -------------------------------------------------------------- | -------------------------------------- |
+| `client/`  | 桌面应用，UI 与本地系统集成                                    | Tauri 2 + React 18 + TypeScript + Vite |
+| `gateway/` | 多客户端访问 core 的网关层，负责路由、鉴权、协议转换、流式代理 | Node.js 20 + Fastify 4 + TypeScript    |
+| `core/`    | agent 核心：会话、工具、LLM 调用、OS 自动化                    | Node.js 20 + Fastify 4 + TypeScript    |
 
 ## 快速开始
 
@@ -69,17 +69,18 @@ LLM / 工具 / OS 自动化
 - 触发：push 到 `main` 或 `dev-*` 分支，或在 GitHub UI 手动 Run workflow
 - 详细 workflow：`.github/workflows/build.yml`
 
-| 平台 | Runner | Target | 产物 |
-|------|--------|--------|------|
-| Windows x86_64 | `windows-latest` | `x86_64-pc-windows-msvc` | `.msi`（Windows Installer）+ NSIS `.exe` |
-| Linux x86_64   | `ubuntu-latest`   | `x86_64-unknown-linux-gnu` | `.deb`（Debian/Ubuntu 包）+ `.AppImage`（免安装可执行） |
-| macOS universal | `macos-latest` | `universal-apple-darwin`（arm64 + x86_64 lipo） | `.app`（应用程序包）+ `.dmg`（安装镜像） |
+| 平台            | Runner           | Target                                          | 产物                                                    |
+| --------------- | ---------------- | ----------------------------------------------- | ------------------------------------------------------- |
+| Windows x86_64  | `windows-latest` | `x86_64-pc-windows-msvc`                        | `.msi`（Windows Installer）+ NSIS `.exe`                |
+| Linux x86_64    | `ubuntu-latest`  | `x86_64-unknown-linux-gnu`                      | `.deb`（Debian/Ubuntu 包）+ `.AppImage`（免安装可执行） |
+| macOS universal | `macos-latest`   | `universal-apple-darwin`（arm64 + x86_64 lipo） | `.app`（应用程序包）+ `.dmg`（安装镜像）                |
 
 占位图标源：`client/assets/icon-source.png`（CI 上由 `tauri icon` 现场生成全套 icons）。
 
 下载方式：push 后在 GitHub 仓库页面 → Actions → 选对应 run → Artifacts。
 
 **首次安装注意事项**
+
 - Windows：未签名，SmartScreen 提示时点"仍要运行"；Win10 需装 WebView2 Runtime。
 - macOS：未签名 + 未公证，Apple Silicon 上首次打开需 **右键 → 打开**（或系统设置 → 隐私与安全 → 仍要打开）。
 - Linux：`.deb` 双击安装或 `sudo dpkg -i xxx.deb`；`.AppImage` 需 `chmod +x` 后双击运行。

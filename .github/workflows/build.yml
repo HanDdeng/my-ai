@@ -16,10 +16,42 @@ permissions:
   contents: read
 
 jobs:
+  # 质量闸门：lint / typecheck / test 三关全过才放行后续平台构建。
+  # 跑在 ubuntu-latest 上，速度最快且无平台差异。
+  quality:
+    name: Lint / typecheck / test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm -r run typecheck
+
+      - name: Lint
+        run: pnpm -r run lint
+
+      - name: Test
+        run: pnpm -r run test
+
   build-macos:
     name: macOS (universal)
     runs-on: macos-latest
     timeout-minutes: 60
+    needs: quality
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -75,6 +107,7 @@ jobs:
     name: Linux (x86_64)
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    needs: quality
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -142,6 +175,7 @@ jobs:
     name: Windows (x86_64)
     runs-on: windows-latest
     timeout-minutes: 60
+    needs: quality
     steps:
       - name: Checkout
         uses: actions/checkout@v5

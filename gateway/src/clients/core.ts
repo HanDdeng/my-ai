@@ -41,7 +41,11 @@ export class CoreClient {
    */
   async forward(
     path: string,
-    init: { method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'; body?: unknown; headers?: Record<string, string> },
+    init: {
+      method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+      body?: unknown;
+      headers?: Record<string, string>;
+    },
   ) {
     const opts: Parameters<typeof request>[1] = {
       method: init.method,

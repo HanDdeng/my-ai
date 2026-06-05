@@ -16,7 +16,9 @@ export async function buildServer(cfg: Config) {
   const app = Fastify({ logger: createLogger(cfg.LOG_LEVEL) });
 
   // CORS：拆分逗号分隔字符串，trim 后过滤空值。
-  const origins = cfg.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean);
+  const origins = cfg.CORS_ORIGINS.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   await app.register(cors, { origin: origins, credentials: true });
   await app.register(websocket);
 

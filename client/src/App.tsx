@@ -29,12 +29,15 @@ function App() {
 
       <section>
         <h2>Gateway status</h2>
-        <p>URL: <code>{GATEWAY_URL}</code></p>
+        <p>
+          URL: <code>{GATEWAY_URL}</code>
+        </p>
         {error && <p className="error">error: {error}</p>}
         {!error && !health && <p>checking…</p>}
         {health && (
           <p>
-            <span className="dot" data-ok={health.ok} /> {health.service} — {health.ok ? 'ok' : 'down'}
+            <span className="dot" data-ok={health.ok} /> {health.service} —{' '}
+            {health.ok ? 'ok' : 'down'}
           </p>
         )}
       </section>

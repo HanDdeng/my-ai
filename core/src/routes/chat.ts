@@ -16,7 +16,9 @@ export async function chatRoutes(app: FastifyInstance, registry: AgentRegistry) 
     // 入参校验失败返回 400 + 详细错误，调用方容易定位问题。
     const parsed = ChatBody.safeParse(req.body);
     if (!parsed.success) {
-      return reply.code(400).send({ ok: false, error: 'invalid_body', details: parsed.error.flatten() });
+      return reply
+        .code(400)
+        .send({ ok: false, error: 'invalid_body', details: parsed.error.flatten() });
     }
     // agent 不存在时 404，而不是 500；提示前端给出明确指引。
     const agent = registry.get(parsed.data.agentId);

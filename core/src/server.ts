@@ -17,7 +17,9 @@ import { chatRoutes } from './routes/chat.js';
 export async function buildServer(cfg: Config) {
   const app = Fastify({ logger: createLogger(cfg.LOG_LEVEL) });
 
-  const origins = cfg.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean);
+  const origins = cfg.CORS_ORIGINS.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   await app.register(cors, { origin: origins, credentials: true });
   await app.register(websocket);
 

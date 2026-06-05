@@ -20,10 +20,10 @@ pnpm --filter gateway run start
 
 ## 当前路由
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET  | `/health`         | 网关 + 上游 core 健康状态 |
-| GET  | `/v1/agents`      | 列出可用 agent（转发到 core） |
+| 方法 | 路径         | 说明                          |
+| ---- | ------------ | ----------------------------- |
+| GET  | `/health`    | 网关 + 上游 core 健康状态     |
+| GET  | `/v1/agents` | 列出可用 agent（转发到 core） |
 
 ## 后续
 
