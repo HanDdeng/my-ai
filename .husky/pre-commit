@@ -1,12 +1,13 @@
-# pre-commit 钩子：
+# pre-commit 钩子（dev 分支部署专用闸门）：
 #   1) lint-staged：暂存文件跑 ESLint + Prettier。
-#   2) pnpm -r run typecheck：全工作区 tsc 校验，确保类型错不出仓库。
-# 两个并行跑，任意一个失败即整体退出码非零，提交被阻断。
+#   2) pnpm -r run typecheck：全工作区 tsc 校验。
+#   3) pnpm -r run test：全工作区跑 vitest。
+# 三个并行跑，任意一个失败即整体退出码非零，提交被阻断。
 #
 # 背景：dev 分支直接进测试环境、不合入 main 触发 CI，pre-commit 是最后一道闸，
-# 所以宁可提交慢 5-10 秒也要把类型错拦在本地。
+# 所以宁可提交慢 10-20 秒也要把语法/类型/测试错全拦在本地。
 #
-# 注意：set -e 对后台进程的 wait 行为不可靠，必须显式收集两边的退出码再决定整体退出。
+# 注意：set -e 对后台进程的 wait 行为不可靠，必须显式收集各 PID 的退出码再决定整体退出。
 
 pnpm exec lint-staged &
 LINT_PID=$!
@@ -14,16 +15,22 @@ LINT_PID=$!
 pnpm -r run typecheck &
 TYPECHECK_PID=$!
 
+pnpm -r run test &
+TEST_PID=$!
+
 wait $LINT_PID
 LINT_RC=$?
 
 wait $TYPECHECK_PID
 TYPECHECK_RC=$?
 
+wait $TEST_PID
+TEST_RC=$?
+
 # 任一非零则整体非零，git 看到退出码非零会阻断提交。
-if [ $LINT_RC -ne 0 ] || [ $TYPECHECK_RC -ne 0 ]; then
+if [ $LINT_RC -ne 0 ] || [ $TYPECHECK_RC -ne 0 ] || [ $TEST_RC -ne 0 ]; then
   echo ""
-  echo "✖ pre-commit failed: lint=$LINT_RC typecheck=$TYPECHECK_RC"
+  echo "✖ pre-commit failed: lint=$LINT_RC typecheck=$TYPECHECK_RC test=$TEST_RC"
   exit 1
 fi
 
