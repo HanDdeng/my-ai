@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 jobs:
-  # 质量闸门：lint / typecheck / test 三关全过才放行后续平台构建。
+  # 质量闸门：lint / typecheck / test + dedupe + secret scan 五关全过才放行后续平台构建。
   # 跑在 ubuntu-latest 上，速度最快且无平台差异。
   quality:
     name: Lint / typecheck / test
@@ -39,6 +39,16 @@ jobs:
 
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
+
+      # 检查 monorepo lockfile 有没有可合并的重复依赖；非零即视为有可优化空间。
+      - name: Dedupe check
+        run: pnpm dedupe --check
+
+      # 扫 git 历史找误提交的 API key / token / 私钥。PR 合入前必过。
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Typecheck
         run: pnpm -r run typecheck

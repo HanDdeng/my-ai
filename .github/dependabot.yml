@@ -1,0 +1,109 @@
+# Dependabot 配置：每周一自动检查并开 PR 升级依赖。
+# 升级到 dev 分支即可，pre-commit 三道闸会先拦下 break 的升级。
+
+version: 2
+
+updates:
+  # 根 package.json（共享工具链：prettier / husky / lint-staged / commitlint / eslint / ts）。
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'root'
+    groups:
+      dev-tools:
+        dependency-type: 'development'
+        patterns:
+          - '*'
+    commit-message:
+      prefix: 'chore'
+      prefix-development: 'chore'
+      include: 'scope'
+
+  # 客户端（Tauri / React / Vite / Vitest 客户端侧）。
+  - package-ecosystem: 'npm'
+    directory: '/client'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'client'
+    groups:
+      dev-tools:
+        dependency-type: 'development'
+      runtime:
+        dependency-type: 'production'
+    commit-message:
+      prefix: 'chore'
+      prefix-development: 'chore'
+      include: 'scope'
+
+  # 网关（Fastify 服务栈）。
+  - package-ecosystem: 'npm'
+    directory: '/gateway'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'gateway'
+    groups:
+      dev-tools:
+        dependency-type: 'development'
+      runtime:
+        dependency-type: 'production'
+    commit-message:
+      prefix: 'chore'
+      prefix-development: 'chore'
+      include: 'scope'
+
+  # core（agent 核心服务栈）。
+  - package-ecosystem: 'npm'
+    directory: '/core'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'core'
+    groups:
+      dev-tools:
+        dependency-type: 'development'
+      runtime:
+        dependency-type: 'production'
+    commit-message:
+      prefix: 'chore'
+      prefix-development: 'chore'
+      include: 'scope'
+
+  # GitHub Actions 自身升级（upload-artifact / checkout / setup-node 等）。
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'ci'
+    commit-message:
+      prefix: 'ci'
+      include: 'scope'
