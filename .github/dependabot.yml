@@ -1,114 +1,12 @@
-# Dependabot 配置：v1 阶段整体关闭（v1 太早期，依赖没稳定下来，
-# 每周一开 5+ 个 PR 噪音太大且 major 升级容易 break）。
-# v2 起稳定后重新评估：
-#   - 调成 monthly + open-pull-requests-limit: 1
-#   - 或加 ignore 规则只放行 minor/patch
-# 注意 enabled: false 只关 version-updates，不关 security-updates。
+# Dependabot 配置：v1 阶段策略
+#   - version-updates（自动升级依赖版本）：关
+#   - security-updates（CVE 触发自动升级）：开（在仓库 Settings → Code security and analysis 启用）
+#
+# enabled: false 只关 version-updates，不影响 security-updates。
+# security-updates 一旦开，GitHub 会在依赖出现 GHSA 漏洞时自动开 PR 升级到修复版。
+#
+# v2 阶段若要重新打开 version-updates，把 enabled 改 true 并加回 updates: 块；
+# 建议先 monthly + open-pull-requests-limit: 1 起步。
 
 version: 2
 enabled: false
-
-updates:
-  # 根 package.json（共享工具链：prettier / husky / lint-staged / commitlint / eslint / ts）。
-  - package-ecosystem: 'npm'
-    directory: '/'
-    schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '09:00'
-      timezone: 'Asia/Shanghai'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'root'
-    groups:
-      dev-tools:
-        dependency-type: 'development'
-        patterns:
-          - '*'
-    commit-message:
-      prefix: 'chore'
-      prefix-development: 'chore'
-      include: 'scope'
-
-  # 客户端（Tauri / React / Vite / Vitest 客户端侧）。
-  - package-ecosystem: 'npm'
-    directory: '/client'
-    schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '09:00'
-      timezone: 'Asia/Shanghai'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'client'
-    groups:
-      dev-tools:
-        dependency-type: 'development'
-      runtime:
-        dependency-type: 'production'
-    commit-message:
-      prefix: 'chore'
-      prefix-development: 'chore'
-      include: 'scope'
-
-  # 网关（Fastify 服务栈）。
-  - package-ecosystem: 'npm'
-    directory: '/gateway'
-    schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '09:00'
-      timezone: 'Asia/Shanghai'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'gateway'
-    groups:
-      dev-tools:
-        dependency-type: 'development'
-      runtime:
-        dependency-type: 'production'
-    commit-message:
-      prefix: 'chore'
-      prefix-development: 'chore'
-      include: 'scope'
-
-  # core（agent 核心服务栈）。
-  - package-ecosystem: 'npm'
-    directory: '/core'
-    schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '09:00'
-      timezone: 'Asia/Shanghai'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'core'
-    groups:
-      dev-tools:
-        dependency-type: 'development'
-      runtime:
-        dependency-type: 'production'
-    commit-message:
-      prefix: 'chore'
-      prefix-development: 'chore'
-      include: 'scope'
-
-  # GitHub Actions 自身升级（upload-artifact / checkout / setup-node 等）。
-  - package-ecosystem: 'github-actions'
-    directory: '/'
-    schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '09:00'
-      timezone: 'Asia/Shanghai'
-    open-pull-requests-limit: 3
-    labels:
-      - 'dependencies'
-      - 'ci'
-    commit-message:
-      prefix: 'ci'
-      include: 'scope'
