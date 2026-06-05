@@ -17,7 +17,7 @@ function App() {
   // 启动时拉一次 gateway 健康检查，仅用于演示连通性。
   useEffect(() => {
     fetch(`${GATEWAY_URL}/health`)
-      .then((r) => r.json() as Promise<Health>)
+      .then(r => r.json() as Promise<Health>)
       .then(setHealth)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, []);

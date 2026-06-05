@@ -66,7 +66,7 @@ LLM / 工具 / OS 自动化
 
 通过 GitHub Actions 在三平台 runner 上并行构建（无需本地 Rust/MSVC 工具链）。
 
-- 触发：push 到 `main` 或 `dev-*` 分支，或在 GitHub UI 手动 Run workflow
+- 触发：向 `main` 发起的 PR，或在 GitHub UI 手动 Run workflow
 - 详细 workflow：`.github/workflows/build.yml`
 
 | 平台            | Runner           | Target                                          | 产物                                                    |
@@ -77,7 +77,7 @@ LLM / 工具 / OS 自动化
 
 占位图标源：`client/assets/icon-source.png`（CI 上由 `tauri icon` 现场生成全套 icons）。
 
-下载方式：push 后在 GitHub 仓库页面 → Actions → 选对应 run → Artifacts。
+下载方式：PR 页面 → Checks → 选 quality / 平台构建 → Artifacts 即可下载；合入后该 run 仍在 Actions 历史里可见。
 
 **首次安装注意事项**
 

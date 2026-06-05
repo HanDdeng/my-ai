@@ -17,7 +17,7 @@ export async function buildServer(cfg: Config) {
 
   // CORS：拆分逗号分隔字符串，trim 后过滤空值。
   const origins = cfg.CORS_ORIGINS.split(',')
-    .map((s) => s.trim())
+    .map(s => s.trim())
     .filter(Boolean);
   await app.register(cors, { origin: origins, credentials: true });
   await app.register(websocket);
@@ -25,7 +25,7 @@ export async function buildServer(cfg: Config) {
   const core = new CoreClient({ baseUrl: cfg.CORE_URL });
   app.decorate('core', core);
 
-  await app.register(async (instance) => {
+  await app.register(async instance => {
     await healthRoutes(instance, core);
     await agentRoutes(instance, core);
   });

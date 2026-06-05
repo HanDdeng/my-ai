@@ -22,6 +22,6 @@ export class AgentRegistry {
    * 列出所有 agent 的 descriptor（不含具体实现），用于对外暴露。
    */
   list(): AgentDescriptor[] {
-    return [...this.map.values()].map((a) => a.descriptor());
+    return [...this.map.values()].map(a => a.descriptor());
   }
 }

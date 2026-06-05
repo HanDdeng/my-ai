@@ -6,7 +6,9 @@ import './styles.css';
 
 // 拿挂载点；找不到说明 HTML 模板有问题，直接抛错比静默失败更安全。
 const root = document.getElementById('root');
-if (!root) throw new Error('root element not found');
+if (!root) {
+  throw new Error('root element not found');
+}
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>

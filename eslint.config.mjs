@@ -48,6 +48,8 @@ export default [
       ],
       '@typescript-eslint/no-explicit-any': 'warn',
       'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+      // 强制 if / else / for / while / do 必须带花括号（与 Prettier 的紧凑行为互补）。
+      curly: ['error', 'all'],
     },
   },
   // Node 子项目（gateway、core）：Node 全局 + 允许 process.exit。

@@ -18,7 +18,7 @@ export async function buildServer(cfg: Config) {
   const app = Fastify({ logger: createLogger(cfg.LOG_LEVEL) });
 
   const origins = cfg.CORS_ORIGINS.split(',')
-    .map((s) => s.trim())
+    .map(s => s.trim())
     .filter(Boolean);
   await app.register(cors, { origin: origins, credentials: true });
   await app.register(websocket);
@@ -31,7 +31,7 @@ export async function buildServer(cfg: Config) {
 
   app.decorate('registry', registry);
 
-  await app.register(async (instance) => {
+  await app.register(async instance => {
     await healthRoutes(instance);
     await agentRoutes(instance, registry);
     await chatRoutes(instance, registry);

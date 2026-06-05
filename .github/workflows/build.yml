@@ -1,8 +1,10 @@
 name: build
 
 on:
-  push:
-    branches: [main, 'dev-*']
+  # CI 只在向主分支发起 PR 时才跑，避免 dev-* 频繁推送浪费 CI 分钟。
+  # 合入 main 之后需要再次校验可手动 workflow_dispatch。
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 env:
