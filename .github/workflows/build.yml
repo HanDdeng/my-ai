@@ -6,7 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  # 业务代码与 actions v5/v6 一律用 Node 24 LTS；不再需要强制。
+  NODE_VERSION: '24'
 
 permissions:
   contents: read
@@ -21,12 +22,12 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install JS dependencies
@@ -54,14 +55,14 @@ jobs:
         run: pnpm exec tauri build --target universal-apple-darwin --bundles app,dmg
 
       - name: Upload .app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: my-ai-macos-app
           path: client/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
           if-no-files-found: error
 
       - name: Upload .dmg
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: my-ai-macos-dmg
           path: client/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
@@ -76,12 +77,12 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install Linux build dependencies
@@ -121,14 +122,14 @@ jobs:
         run: pnpm exec tauri build --target x86_64-unknown-linux-gnu --bundles deb,appimage
 
       - name: Upload .deb
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: my-ai-linux-deb
           path: client/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
           if-no-files-found: error
 
       - name: Upload .AppImage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: my-ai-linux-appimage
           path: client/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
@@ -143,12 +144,12 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install JS dependencies
@@ -176,14 +177,14 @@ jobs:
         run: pnpm exec tauri build --target x86_64-pc-windows-msvc --bundles msi,nsis
 
       - name: Upload .msi
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: my-ai-windows-msi
           path: client/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
           if-no-files-found: error
 
       - name: Upload NSIS .exe
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: my-ai-windows-nsis
           path: client/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
