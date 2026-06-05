@@ -1,3 +1,4 @@
+// core Fastify 装配：CORS、WS、LLM/Registry 注入、路由注册、错误兜底。
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
@@ -10,6 +11,9 @@ import { healthRoutes } from './routes/health.js';
 import { agentRoutes } from './routes/agents.js';
 import { chatRoutes } from './routes/chat.js';
 
+/**
+ * 构建 core Fastify 实例：app 上的 `registry` 装饰供路由访问 agent。
+ */
 export async function buildServer(cfg: Config) {
   const app = Fastify({ logger: createLogger(cfg.LOG_LEVEL) });
 
@@ -17,8 +21,10 @@ export async function buildServer(cfg: Config) {
   await app.register(cors, { origin: origins, credentials: true });
   await app.register(websocket);
 
+  // 构造依赖：LLM 客户端与 agent 注册表。
   const llm = createLLMClient(cfg);
   const registry = new AgentRegistry();
+  // 注册默认 agent；后续 agent 在此追加。
   registry.register(new EchoAgent(llm));
 
   app.decorate('registry', registry);
@@ -29,6 +35,7 @@ export async function buildServer(cfg: Config) {
     await chatRoutes(instance, registry);
   });
 
+  // 全局错误兜底：避免栈泄露，500 统一回包。
   app.setErrorHandler((err, _req, reply) => {
     app.log.error({ err }, 'unhandled error');
     reply.code(500).send({ ok: false, error: 'internal_error' });

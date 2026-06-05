@@ -1,22 +1,22 @@
-# Dependencies
+# 依赖目录
 node_modules/
 .pnpm-store/
 
-# Build artifacts
+# 构建产物
 dist/
 build/
 out/
 target/
 
-# Tauri
+# Tauri 临时/生成文件
 src-tauri/target/
 src-tauri/gen/
 
-# Vite / TS
+# Vite / TS 临时
 .vite/
 *.tsbuildinfo
 
-# Env / secrets — never commit
+# 环境变量与证书——绝不入仓
 .env
 .env.local
 .env.*.local
@@ -24,20 +24,20 @@ src-tauri/gen/
 *.key
 *.crt
 
-# IDE / Agent tooling
+# IDE / Agent 工具
 .vscode/
 .idea/
 .claude/
 *.swp
 .DS_Store
 
-# Project-generated data (per CLAUDE.md)
+# 项目生成数据（按 CLAUDE.md 约定不进仓）
 data/
 screenshots/
 tmp/
 logs/
 *.log
 
-# Coverage
+# 测试覆盖率
 coverage/
 .nyc_output/

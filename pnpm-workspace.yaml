@@ -1,3 +1,4 @@
+# pnpm 工作区声明：monorepo 内的子项目根。
 packages:
   - "client"
   - "gateway"

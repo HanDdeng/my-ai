@@ -1,3 +1,4 @@
+// core 入口：装配 + 监听 + 优雅退出。
 import { loadConfig } from './config.js';
 import { buildServer } from './server.js';
 

@@ -1,3 +1,5 @@
+/* 客户端全局样式：暗色基调，最小骨架，后续会替换为组件库或设计系统。 */
+
 :root {
   color-scheme: light dark;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -25,6 +27,7 @@ code { background: #1a1c21; padding: 1px 6px; border-radius: 4px; }
 
 .error { color: #ff6b6b; }
 
+/* 健康指示灯：data-ok 决定颜色。 */
 .dot {
   display: inline-block;
   width: 8px; height: 8px;

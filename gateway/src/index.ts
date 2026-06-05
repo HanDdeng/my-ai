@@ -1,3 +1,4 @@
+// 网关入口：装配 + 监听 + 优雅退出。
 import { loadConfig } from './config.js';
 import { buildServer } from './server.js';
 
@@ -13,6 +14,7 @@ try {
   process.exit(1);
 }
 
+// 收到信号时关闭 server 再退出，让 in-flight 请求有机会完成。
 const shutdown = async (signal: string) => {
   app.log.info(`received ${signal}, shutting down`);
   await app.close();

@@ -1,5 +1,10 @@
+// pino 日志工厂：开发期走 pino-pretty 带颜色，prod 走结构化 JSON 便于采集。
 import pino, { type LoggerOptions } from 'pino';
 
+/**
+ * 构造 pino logger。
+ * @param level 日志等级字符串
+ */
 export function createLogger(level: string) {
   const options: LoggerOptions = { level };
   if (process.env.NODE_ENV !== 'production') {

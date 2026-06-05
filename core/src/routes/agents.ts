@@ -1,3 +1,4 @@
+// agent 列表路由：返回 registry 中所有 agent 的描述。
 import type { FastifyInstance } from 'fastify';
 import type { AgentRegistry } from '../agent/registry.js';
 
