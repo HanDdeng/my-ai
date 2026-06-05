@@ -1,0 +1,33 @@
+[package]
+# Tauri Rust 侧包描述：与 Tauri 2 配套，crate-type 同时给移动端与桌面端用。
+name = "my-ai-client"
+version = "0.0.0"
+description = "my-ai desktop client"
+authors = ["handdeng"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+# crate-type 三种：staticlib（iOS）、cdylib（Android）、rlib（其他平台默认）。
+name = "my_ai_client_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+# tauri-build 会在编译期生成权限 schema、context 等。
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+# Tauri 2 主框架
+tauri = { version = "2.1", features = [] }
+# 提供 http client 能力（前端可通过 @tauri-apps/plugin-http 调用，避免 CORS）。
+tauri-plugin-http = { version = "2.0", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+# Release 体积优化：单 codegen unit + LTO + strip 符号。
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

@@ -1,0 +1,25 @@
+# pnpm 工作区声明：monorepo 内的子项目根。
+# catalog 块集中管理跨子项目共享的依赖版本，子项目用 "catalog:" 引用。
+# 优势：升级 TS / Vitest / Zod 之类的共享版本时只需改一处。
+packages:
+  - 'client'
+  - 'gateway'
+  - 'core'
+
+catalog:
+  # 跨子项目类型与运行时基建
+  typescript: ^5.5.4
+  '@types/node': ^22.8.6
+  tsx: ^4.19.1
+
+  # 跨子项目工具链
+  eslint: ^9.13.0
+  vitest: ^2.1.4
+
+  # gateway + core 共用服务栈
+  fastify: ^4.28.1
+  '@fastify/cors': ^9.0.1
+  '@fastify/websocket': ^10.0.1
+  pino: ^9.5.0
+  'pino-pretty': ^11.3.0
+  zod: ^3.23.8
