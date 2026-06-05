@@ -62,13 +62,24 @@ LLM / 工具 / OS 自动化
 - [ ] client 多 agent 切换 UI
 - [ ] 多 agent 协作与配置中心
 
-## Windows 构建产物
+## 多平台构建产物
 
-通过 GitHub Actions 在 `windows-latest` runner 上自动构建（无需本地 Rust/MSVC 工具链）。
+通过 GitHub Actions 在三平台 runner 上并行构建（无需本地 Rust/MSVC 工具链）。
 
 - 触发：push 到 `main` 或 `dev-*` 分支，或在 GitHub UI 手动 Run workflow
-- 产物：`.msi` 安装包（Windows Installer）+ NSIS `.exe` 安装包
-- 占位图标源：`client/assets/icon-source.png`（CI 上由 `tauri icon` 现场生成全套 icons）
-- 详细 workflow：`.github/workflows/build-windows.yml`
+- 详细 workflow：`.github/workflows/build.yml`
 
-下载方式：push 后在 GitHub 仓库页面 → Actions → 选对应 run → Artifacts 下载 `my-ai-windows-msi` 与 `my-ai-windows-nsis`。
+| 平台 | Runner | Target | 产物 |
+|------|--------|--------|------|
+| Windows x86_64 | `windows-latest` | `x86_64-pc-windows-msvc` | `.msi`（Windows Installer）+ NSIS `.exe` |
+| Linux x86_64   | `ubuntu-latest`   | `x86_64-unknown-linux-gnu` | `.deb`（Debian/Ubuntu 包）+ `.AppImage`（免安装可执行） |
+| macOS universal | `macos-latest` | `universal-apple-darwin`（arm64 + x86_64 lipo） | `.app`（应用程序包）+ `.dmg`（安装镜像） |
+
+占位图标源：`client/assets/icon-source.png`（CI 上由 `tauri icon` 现场生成全套 icons）。
+
+下载方式：push 后在 GitHub 仓库页面 → Actions → 选对应 run → Artifacts。
+
+**首次安装注意事项**
+- Windows：未签名，SmartScreen 提示时点"仍要运行"；Win10 需装 WebView2 Runtime。
+- macOS：未签名 + 未公证，Apple Silicon 上首次打开需 **右键 → 打开**（或系统设置 → 隐私与安全 → 仍要打开）。
+- Linux：`.deb` 双击安装或 `sudo dpkg -i xxx.deb`；`.AppImage` 需 `chmod +x` 后双击运行。
