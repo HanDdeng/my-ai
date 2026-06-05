@@ -16,6 +16,8 @@ env:
 
 permissions:
   contents: read
+  # gitleaks-action 需要读 PR 列表才能按 commit 增量扫描；不开就 403。
+  pull-requests: read
 
 jobs:
   # 质量闸门：lint / typecheck / test + dedupe + secret scan 五关全过才放行后续平台构建。
