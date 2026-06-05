@@ -1,7 +1,0 @@
-# core 构建产物与依赖
-node_modules/
-dist/
-*.tsbuildinfo
-# 环境变量文件（含密钥），绝不入仓
-.env
-.env.local

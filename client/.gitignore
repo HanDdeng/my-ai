@@ -1,8 +1,0 @@
-# 客户端构建产物与依赖
-node_modules/
-dist/
-.vite/
-*.tsbuildinfo
-src-tauri/target/
-src-tauri/gen/
-src-tauri/icons/
