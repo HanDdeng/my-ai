@@ -14,7 +14,7 @@ catalog:
 
   # 跨子项目工具链
   eslint: ^9.13.0
-  vitest: ^2.1.4
+  vitest: ^4.1.0
 
   # gateway + core 共用服务栈
   fastify: ^4.28.1
