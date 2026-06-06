@@ -16,7 +16,7 @@ describe('App 状态机', () => {
       vi.fn(
         async () =>
           new Response(
-            JSON.stringify({ ok: true, service: 'gateway', version: '2.0.0', schema: 1 }),
+            JSON.stringify({ ok: true, service: 'gateway', version: '0.0.2', schema: 1 }),
             { status: 200 },
           ),
       ),

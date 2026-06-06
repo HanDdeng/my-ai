@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "components": {
-    "client": { "version": "2.0.0" },
-    "gateway": { "version": "2.0.0" },
-    "core": { "version": "2.0.0" }
+    "client": { "version": "0.0.2" },
+    "gateway": { "version": "0.0.2" },
+    "core": { "version": "0.0.2" }
   },
   "compat": {
-    "client": { "gateway": ">=2.0.0 <3.0.0" },
-    "gateway": { "core": ">=2.0.0 <3.0.0" },
+    "client": { "gateway": ">=0.0.2 <0.1.0" },
+    "gateway": { "core": ">=0.0.2 <0.1.0" },
     "core": {}
   }
 }

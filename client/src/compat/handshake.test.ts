@@ -15,14 +15,14 @@ describe('handshake', () => {
       vi.fn(
         async () =>
           new Response(
-            JSON.stringify({ ok: true, service: 'gateway', version: '2.0.0', schema: 1 }),
+            JSON.stringify({ ok: true, service: 'gateway', version: '0.0.2', schema: 1 }),
             { status: 200 },
           ),
       ),
     );
     const result = await handshake(GATEWAY_URL, COMPAT);
     expect(result.status).toBe<HandshakeStatus>('HEALTHY');
-    expect(result.version).toBe('2.0.0');
+    expect(result.version).toBe('0.0.2');
   });
 
   it('fetch 成功但 version 不在范围内 → MISMATCH', async () => {

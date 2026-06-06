@@ -34,9 +34,9 @@ describe('Settings', () => {
   });
 
   it('HEALTHY 状态显示 "配对成功"', () => {
-    render(<Settings {...baseProps} status="HEALTHY" version="2.0.0" />);
+    render(<Settings {...baseProps} status="HEALTHY" version="0.0.2" />);
     expect(screen.getByText(/配对成功/)).toBeInTheDocument();
-    expect(screen.getByText(/v2\.0\.0/)).toBeInTheDocument();
+    expect(screen.getByText(/v0\.0\.2/)).toBeInTheDocument();
   });
 
   it('MISMATCH 状态显示 "版本不匹配"', () => {
