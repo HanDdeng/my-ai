@@ -45,3 +45,7 @@ logs/
 # 测试覆盖率
 coverage/
 .nyc_output/
+
+# v2 compat 同步生成的切片（每次 build 重写）
+.compat.generated.json
+client/src/compat.generated.ts

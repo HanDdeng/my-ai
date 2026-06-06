@@ -3,17 +3,21 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import type { Config } from './config.js';
+import type { Compat } from './compat/load.js';
 import { createLogger } from './logger.js';
 import { CoreClient } from './clients/core.js';
 import { healthRoutes } from './routes/health.js';
 import { agentRoutes } from './routes/agents.js';
 
 /**
- * 构建网关 Fastify 实例：app 上的 `core` 装饰供路由访问上游客户端。
+ * 构建网关 Fastify 实例：app 上的 `core` 装饰供路由访问上游客户端，
+ * `compat` 装饰供路由访问版本/上游信息。
  * 不在内部调用 listen，便于测试。
  */
-export async function buildServer(cfg: Config) {
+export async function buildServer(cfg: Config, compat: Compat) {
   const app = Fastify({ logger: createLogger(cfg.LOG_LEVEL) });
+
+  app.decorate('compat', compat);
 
   // CORS：拆分逗号分隔字符串，trim 后过滤空值。
   const origins = cfg.CORS_ORIGINS.split(',')
@@ -26,7 +30,7 @@ export async function buildServer(cfg: Config) {
   app.decorate('core', core);
 
   await app.register(async instance => {
-    await healthRoutes(instance, core);
+    await healthRoutes(instance);
     await agentRoutes(instance, core);
   });
 
@@ -37,4 +41,11 @@ export async function buildServer(cfg: Config) {
   });
 
   return app;
+}
+
+// Fastify 类型扩展：把 compat 挂到 app 实例上
+declare module 'fastify' {
+  interface FastifyInstance {
+    compat: Compat;
+  }
 }

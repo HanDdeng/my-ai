@@ -1,0 +1,19 @@
+name: version-bump check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+jobs:
+  check:
+    name: 子项目代码变更必须 bump version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run check
+        run: bash .github/scripts/version-bump-check.sh origin/main HEAD

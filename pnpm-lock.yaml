@@ -15,6 +15,9 @@ catalogs:
     '@types/node':
       specifier: ^22.8.6
       version: 22.19.18
+    '@types/semver':
+      specifier: ^7.5.8
+      version: 7.7.1
     eslint:
       specifier: ^9.13.0
       version: 9.39.4
@@ -27,6 +30,9 @@ catalogs:
     pino-pretty:
       specifier: ^11.3.0
       version: 11.3.0
+    semver:
+      specifier: ^7.6.3
+      version: 7.8.0
     tsx:
       specifier: ^4.19.1
       version: 4.22.4
@@ -77,12 +83,18 @@ importers:
       rimraf:
         specifier: ^6.0.1
         version: 6.1.3
+      semver:
+        specifier: ^7.6.3
+        version: 7.8.0
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
       typescript-eslint:
         specifier: ^8.12.2
         version: 8.60.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
+      vitest:
+        specifier: ^2.1.4
+        version: 2.1.9(@types/node@22.19.18)(jsdom@25.0.1)
 
   client:
     dependencies:
@@ -98,6 +110,9 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      semver:
+        specifier: 'catalog:'
+        version: 7.8.0
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2.1.0
@@ -114,6 +129,9 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.1
         version: 18.3.7(@types/react@18.3.30)
+      '@types/semver':
+        specifier: 'catalog:'
+        version: 7.7.1
       '@vitejs/plugin-react':
         specifier: ^4.3.3
         version: 4.7.0(vite@5.4.21(@types/node@22.19.18))
@@ -150,6 +168,9 @@ importers:
       pino-pretty:
         specifier: 'catalog:'
         version: 11.3.0
+      semver:
+        specifier: 'catalog:'
+        version: 7.8.0
       zod:
         specifier: 'catalog:'
         version: 3.25.76
@@ -157,6 +178,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 22.19.18
+      '@types/semver':
+        specifier: 'catalog:'
+        version: 7.7.1
       eslint:
         specifier: 'catalog:'
         version: 9.39.4(jiti@2.6.1)
@@ -187,6 +211,9 @@ importers:
       pino-pretty:
         specifier: 'catalog:'
         version: 11.3.0
+      semver:
+        specifier: 'catalog:'
+        version: 7.8.0
       undici:
         specifier: ^6.20.1
         version: 6.25.0
@@ -197,6 +224,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 22.19.18
+      '@types/semver':
+        specifier: 'catalog:'
+        version: 7.7.1
       eslint:
         specifier: 'catalog:'
         version: 9.39.4(jiti@2.6.1)
@@ -1074,6 +1104,9 @@ packages:
 
   '@types/react@18.3.30':
     resolution: {integrity: sha512-3ek6mwJL5/VBewBcY4S66cqlCtK3qi4WIq37Z0m/NHw1hjhI7274Mx1qz/+ggSzyBCOEf7eHjBN6INjPAWYfYw==}
+
+  '@types/semver@7.7.1':
+    resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
 
   '@typescript-eslint/eslint-plugin@8.60.1':
     resolution: {integrity: sha512-JQ4S5GB0tfjO8BuJ4fcX+HodkzJjYBV+7OJ+wLygaX7OGQ7FudyHL4NSCA6ob+w3Yn+5MkKIozOwQhXeM7opVg==}
@@ -3832,6 +3865,8 @@ snapshots:
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.2.3
+
+  '@types/semver@7.7.1': {}
 
   '@typescript-eslint/eslint-plugin@8.60.1(@typescript-eslint/parser@8.60.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:

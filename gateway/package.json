@@ -1,10 +1,12 @@
 {
   "name": "@my-ai/gateway",
-  "version": "0.0.0",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
+    "prebuild": "node ../scripts/sync-compat.mjs",
+    "predev": "node ../scripts/sync-compat.mjs",
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
@@ -18,11 +20,13 @@
     "fastify": "catalog:",
     "pino": "catalog:",
     "pino-pretty": "catalog:",
+    "semver": "catalog:",
     "undici": "^6.20.1",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/semver": "catalog:",
     "eslint": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
