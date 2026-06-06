@@ -1,46 +1,77 @@
-// 客户端根组件：当前是个最小骨架，演示如何从环境变量读取 gateway 地址并探测其健康状态。
-// 后续会扩展为多 agent 切换、消息流、工具调用面板等。
-
+// 客户端根组件：状态机 + heartbeat + 配对面板 + Mismatch banner。
+// 状态机：PAIRING → HEALTHY / MISMATCH / PAIR_FAILED。
+// 5 min heartbeat 重检；banner 关闭 session 内 sticky。
 import { useEffect, useState } from 'react';
+import { handshake, type HandshakeStatus } from './compat/handshake.js';
+import { COMPAT } from './compat.generated.js';
+import { Settings } from './components/Settings.js';
+import { MismatchBanner } from './components/MismatchBanner.js';
 
-type Health = { ok: boolean; service: string };
-
-// 默认指向本地 gateway；打包时可通过 .env 中的 VITE_GATEWAY_URL 覆盖。
 const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL ?? 'http://127.0.0.1:8787';
+// 测试时可通过 import.meta.env 覆盖；缺省 5 min
+const HEARTBEAT_MS = Number(import.meta.env.VITE_HEARTBEAT_INTERVAL_MS ?? 5 * 60 * 1000);
 
 function App() {
-  // gateway 健康状态；null 表示尚未拿到响应。
-  const [health, setHealth] = useState<Health | null>(null);
-  // 拉取过程中出现的错误信息（网络失败、CORS 等）。
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<HandshakeStatus>('PAIRING');
+  const [version, setVersion] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
-  // 启动时拉一次 gateway 健康检查，仅用于演示连通性。
+  // 启动 + heartbeat
   useEffect(() => {
-    fetch(`${GATEWAY_URL}/health`)
-      .then(r => r.json() as Promise<Health>)
-      .then(setHealth)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+    let cancelled = false;
+    const run = async () => {
+      // heartbeat 失败时**不**把 HEALTHY 变 PAIR_FAILED（避免抖动）
+      const prev = status;
+      const next = await handshake(GATEWAY_URL, COMPAT);
+      if (cancelled) {
+        return;
+      }
+      if (next.status === 'PAIR_FAILED' && (prev === 'HEALTHY' || prev === 'MISMATCH')) {
+        return; // 静默保留
+      }
+      setStatus(next.status);
+      if (next.version) {
+        setVersion(next.version);
+      }
+    };
+    void run();
+    const id = setInterval(run, HEARTBEAT_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleTest = async () => {
+    setStatus('PAIRING');
+    const next = await handshake(GATEWAY_URL, COMPAT);
+    setStatus(next.status);
+    if (next.version) {
+      setVersion(next.version);
+    }
+    // 不重置 bannerDismissed：用户已"知晓 mismatch"的意图不应被 retry 重置
+  };
 
   return (
     <main className="app">
       <h1>my-ai client</h1>
-      <p className="muted">Tauri + React skeleton</p>
-
-      <section>
-        <h2>Gateway status</h2>
-        <p>
-          URL: <code>{GATEWAY_URL}</code>
-        </p>
-        {error && <p className="error">error: {error}</p>}
-        {!error && !health && <p>checking…</p>}
-        {health && (
-          <p>
-            <span className="dot" data-ok={health.ok} /> {health.service} —{' '}
-            {health.ok ? 'ok' : 'down'}
-          </p>
-        )}
-      </section>
+      <Settings
+        url={GATEWAY_URL}
+        onUrlChange={() => {
+          /* URL 暂不持久化，v3+ 接入 tauri-plugin-store */
+        }}
+        onTest={handleTest}
+        status={status}
+        version={version}
+      />
+      {status === 'MISMATCH' && !bannerDismissed && (
+        <MismatchBanner
+          gatewayVersion={version}
+          requiredRange={COMPAT.upstream.gateway}
+          onDismiss={() => setBannerDismissed(true)}
+        />
+      )}
     </main>
   );
 }
