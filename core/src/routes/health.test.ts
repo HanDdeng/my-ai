@@ -1,7 +1,7 @@
 // core /health 路由冒烟：构造 server 后用 fastify.inject 拉一次，验证返回 ok。
 import { describe, it, expect } from 'vitest';
 import { buildServer } from '../server.js';
-import type { Config } from '../config.js';
+import { loadConfig, type Config } from '../config.js';
 import type { Compat } from '../compat/load.js';
 
 const cfg: Config = {
@@ -31,5 +31,23 @@ describe('core /health', () => {
     } finally {
       await app.close();
     }
+  });
+});
+
+describe('/health version 字段', () => {
+  it('响应含 version 和 schema', async () => {
+    const app = await buildServer(loadConfig(), {
+      version: '2.0.0',
+      upstream: {},
+    });
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body).toMatchObject({
+      ok: true,
+      service: 'core',
+      version: '2.0.0',
+      schema: 1,
+    });
   });
 });
