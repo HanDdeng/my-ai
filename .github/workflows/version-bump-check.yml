@@ -19,7 +19,6 @@ jobs:
         id: labels
         run: |
           labels='${{ toJson(github.event.pull_request.labels) }}'
-          echo "labels=$labels" >> "$GITHUB_OUTPUT"
           if echo "$labels" | grep -qE '"name":\s*"(skip-version-bump-check|no-bump-required)"'; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
