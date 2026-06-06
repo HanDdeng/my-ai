@@ -1,9 +1,23 @@
 // core 入口：装配 + 监听 + 优雅退出。
+// 启动时同步加载 compat；失败直接退出。
 import { loadConfig } from './config.js';
 import { buildServer } from './server.js';
+import { loadCompat } from './compat/load.js';
+
+let compat;
+try {
+  compat = loadCompat('core');
+  // eslint-disable-next-line no-console
+  console.log(
+    `✓ core compat loaded: version=${compat.version}, upstream=${JSON.stringify(compat.upstream)}`,
+  );
+} catch (e) {
+  console.error(`✖ core 启动失败: ${(e as Error).message}`);
+  process.exit(1);
+}
 
 const cfg = loadConfig();
-const app = await buildServer(cfg);
+const app = await buildServer(cfg, compat);
 
 try {
   await app.listen({ host: cfg.HOST, port: cfg.PORT });
