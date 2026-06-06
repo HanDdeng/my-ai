@@ -23,3 +23,6 @@ catalog:
   pino: ^9.5.0
   'pino-pretty': ^11.3.0
   zod: ^3.23.8
+
+  # 用于版本范围匹配（v2 compat 机制）
+  semver: ^7.6.3

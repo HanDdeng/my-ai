@@ -27,6 +27,9 @@ catalogs:
     pino-pretty:
       specifier: ^11.3.0
       version: 11.3.0
+    semver:
+      specifier: ^7.6.3
+      version: 7.8.0
     tsx:
       specifier: ^4.19.1
       version: 4.22.4
@@ -98,6 +101,9 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      semver:
+        specifier: 'catalog:'
+        version: 7.8.0
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2.1.0
@@ -150,6 +156,9 @@ importers:
       pino-pretty:
         specifier: 'catalog:'
         version: 11.3.0
+      semver:
+        specifier: 'catalog:'
+        version: 7.8.0
       zod:
         specifier: 'catalog:'
         version: 3.25.76
@@ -187,6 +196,9 @@ importers:
       pino-pretty:
         specifier: 'catalog:'
         version: 11.3.0
+      semver:
+        specifier: 'catalog:'
+        version: 7.8.0
       undici:
         specifier: ^6.20.1
         version: 6.25.0
