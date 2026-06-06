@@ -5,6 +5,8 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
+    "prebuild": "node ../scripts/sync-compat.mjs",
+    "predev": "node ../scripts/sync-compat.mjs",
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",

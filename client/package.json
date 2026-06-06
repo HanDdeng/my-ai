@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "node ../scripts/sync-compat.mjs",
+    "predev": "node ../scripts/sync-compat.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
