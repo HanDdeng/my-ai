@@ -5,7 +5,7 @@
 //
 // 由各子项目 predev / prebuild 钩子触发；dev 期间改了 matrix 也立即生效。
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // 用 import.meta.url 解析 matrix 路径，cwd 不敏感：
@@ -62,8 +62,16 @@ export function syncAll() {
   return written;
 }
 
-// CLI 入口
-const isMain = import.meta.url === `file://${process.argv[1]}`;
+// CLI 入口：跨平台检测当前模块是否被作为主入口运行
+const isMain = (() => {
+  try {
+    const modulePath = fileURLToPath(import.meta.url);
+    const argvPath = resolve(process.argv[1]);
+    return modulePath === argvPath;
+  } catch {
+    return false;
+  }
+})();
 if (isMain) {
   try {
     const written = syncAll();
