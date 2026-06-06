@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/semver": "catalog:",
     "eslint": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",

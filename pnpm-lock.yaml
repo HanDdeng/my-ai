@@ -15,6 +15,9 @@ catalogs:
     '@types/node':
       specifier: ^22.8.6
       version: 22.19.18
+    '@types/semver':
+      specifier: ^7.5.8
+      version: 7.7.1
     eslint:
       specifier: ^9.13.0
       version: 9.39.4
@@ -172,6 +175,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 22.19.18
+      '@types/semver':
+        specifier: 'catalog:'
+        version: 7.7.1
       eslint:
         specifier: 'catalog:'
         version: 9.39.4(jiti@2.6.1)
@@ -1092,6 +1098,9 @@ packages:
 
   '@types/react@18.3.30':
     resolution: {integrity: sha512-3ek6mwJL5/VBewBcY4S66cqlCtK3qi4WIq37Z0m/NHw1hjhI7274Mx1qz/+ggSzyBCOEf7eHjBN6INjPAWYfYw==}
+
+  '@types/semver@7.7.1':
+    resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
 
   '@typescript-eslint/eslint-plugin@8.60.1':
     resolution: {integrity: sha512-JQ4S5GB0tfjO8BuJ4fcX+HodkzJjYBV+7OJ+wLygaX7OGQ7FudyHL4NSCA6ob+w3Yn+5MkKIozOwQhXeM7opVg==}
@@ -3850,6 +3859,8 @@ snapshots:
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.2.3
+
+  '@types/semver@7.7.1': {}
 
   '@typescript-eslint/eslint-plugin@8.60.1(@typescript-eslint/parser@8.60.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:

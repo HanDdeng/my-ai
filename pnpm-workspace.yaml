@@ -26,3 +26,4 @@ catalog:
 
   # 用于版本范围匹配（v2 compat 机制）
   semver: ^7.6.3
+  '@types/semver': ^7.5.8
