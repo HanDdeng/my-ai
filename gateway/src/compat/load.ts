@@ -43,18 +43,21 @@ export function parseCompat(filePath: string): Compat {
 }
 
 /**
- * 在当前进程的 dist/.. 路径下找 .compat.generated.json 并解析。
+ * 在当前子项目根目录下找 .compat.generated.json 并解析。
  * 文件名按惯例：{subprojectName}/.compat.generated.json
- * subprojectName 由调用方传入。
+ * subprojectName 由调用方传入（仅作 future-proof API 形参，不参与路径拼接）。
  *
  * 实现要点：用 import.meta.url 锚定路径，与 sync-compat.mjs 同风格，
  * 从子项目 cwd 或 repo root 跑都能找到正确文件。
  */
 export function loadCompat(subprojectName: string): Compat {
-  // core/src/compat/load.ts（dist 后是 core/dist/compat/load.js）
-  // 上 3 级到 core/，再拼 {name}.compat.generated.json
-  const target = fileURLToPath(
-    new URL(`../../${subprojectName}.compat.generated.json`, import.meta.url),
-  );
+  // 假设调用方传 'core' 或 'gateway'，slice 位于 {name}/.compat.generated.json。
+  // 当前模块位于 {name}/src/compat/load.ts（dev: tsx 直跑 .ts），
+  // 或 {name}/dist/compat/load.js（prod: tsc 编译后）。
+  // 两种情况下 '../../.compat.generated.json' 都解析到 {name}/.compat.generated.json。
+  // 注：subprojectName 当前不参与路径拼接（仅保留为 future-proof API 形参），
+  // 与 sync-compat.mjs 写出的位置保持一致。
+  void subprojectName; // 显式标记未使用，避免 lint warning
+  const target = fileURLToPath(new URL(`../../.compat.generated.json`, import.meta.url));
   return parseCompat(target);
 }
