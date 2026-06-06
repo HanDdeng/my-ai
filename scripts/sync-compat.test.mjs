@@ -30,16 +30,18 @@ describe('sync-compat.mjs', () => {
   });
 
   /**
-   * 在临时 workdir 下构造最小项目结构（gateway/、core/、client/src/、versions/），
-   * 把仓库根的 sync-compat.mjs 复制到 workdir 根，写入指定 matrix，跑脚本。
+   * 在临时 workdir 下构造最小项目结构（scripts/、gateway/、core/、client/src/、versions/），
+   * 把仓库根的 sync-compat.mjs 复制到 workdir/scripts/，写入指定 matrix，跑脚本。
+   * 复制到 scripts/ 下是为了与生产布局一致，让 import.meta.url 解析的 matrix 路径
+   * 落在 workdir/versions/compat-matrix.json。
    */
   function setupAndRun(matrix) {
-    for (const d of ['gateway', 'core', 'client/src', 'versions']) {
+    for (const d of ['scripts', 'gateway', 'core', 'client/src', 'versions']) {
       execFileSync('mkdir', ['-p', join(workdir, d)]);
     }
     writeFileSync(join(workdir, 'versions/compat-matrix.json'), JSON.stringify(matrix));
-    copyFileSync(SCRIPT_SRC, join(workdir, 'sync-compat.mjs'));
-    execFileSync('node', ['sync-compat.mjs'], { cwd: workdir });
+    copyFileSync(SCRIPT_SRC, join(workdir, 'scripts/sync-compat.mjs'));
+    execFileSync('node', ['scripts/sync-compat.mjs'], { cwd: workdir });
     return workdir;
   }
 

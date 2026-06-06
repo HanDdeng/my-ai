@@ -6,8 +6,12 @@
 // 由各子项目 predev / prebuild 钩子触发；dev 期间改了 matrix 也立即生效。
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const MATRIX_PATH = 'versions/compat-matrix.json';
+// 用 import.meta.url 解析 matrix 路径，cwd 不敏感：
+// 各子项目 predev/prebuild 钩子在 client/、gateway/、core/ 中调用此脚本，
+// 也能正确指向仓库根的 versions/compat-matrix.json。
+const MATRIX_PATH = fileURLToPath(new URL('../versions/compat-matrix.json', import.meta.url));
 
 function readMatrix() {
   let raw;
