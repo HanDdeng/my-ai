@@ -96,6 +96,12 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
+      # client 端的 compat.generated.ts 是 sync-compat.mjs 现场生成的，
+      # gitignore 仓库内不提交。每个 platform runner 都是独立 checkout，
+      # build frontend 前必须先跑 sync:compat，否则 tsc 会报 TS2307。
+      - name: Sync compat slices
+        run: pnpm run sync:compat
+
       - name: Build frontend
         run: pnpm --filter @my-ai/client run build
 
@@ -164,6 +170,12 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
+      # client 端的 compat.generated.ts 是 sync-compat.mjs 现场生成的，
+      # gitignore 仓库内不提交。每个 platform runner 都是独立 checkout，
+      # build frontend 前必须先跑 sync:compat，否则 tsc 会报 TS2307。
+      - name: Sync compat slices
+        run: pnpm run sync:compat
+
       - name: Build frontend
         run: pnpm --filter @my-ai/client run build
 
@@ -219,6 +231,12 @@ jobs:
 
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
+
+      # client 端的 compat.generated.ts 是 sync-compat.mjs 现场生成的，
+      # gitignore 仓库内不提交。每个 platform runner 都是独立 checkout，
+      # build frontend 前必须先跑 sync:compat，否则 tsc 会报 TS2307。
+      - name: Sync compat slices
+        run: pnpm run sync:compat
 
       - name: Build frontend
         run: pnpm --filter @my-ai/client run build
