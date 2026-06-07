@@ -80,6 +80,27 @@ LLM / 工具 / OS 自动化
 - 生成的截图、临时数据、构建产物统一在 `data/`、`tmp/` 下，禁止提交到 git。
 - 主分支（`main`）禁止直接编辑，所有改动走 `dev-YYYYMMDD` 分支并通过 MR 合入。
 
+## v3：网关远程配对与鉴权
+
+v3 在 v2 握手 / heartbeat 基础上引入客户端身份：
+
+- 客户端首次启动需"配对"（填 gateway URL + 可选 pair key + 可选 name）
+- 网关公开/私有两种模式：公开无障碍配对；私有需 CLI 解析配对码或提供 pair key
+- 配对成功 → 网关存 clientKey 的 SHA-256 hash + 元数据
+- 后续请求 header `X-Client-Key: <clientKey>` 鉴权（fastify middleware）
+- 配对信息存 SQLite（`./gateway.db`）；TTL 可配，过期自动清理
+- CLI：`my-ai-gateway { start | pair --token <token> | list }`
+
+详细见 [`versions/v3.md`](./versions/v3.md)。
+
+### 部署假设
+
+v3 假设 gateway 部署在以下任一环境：
+
+- **HTTPS**（推荐）：TLS 加密 header 传输，clientKey 不可被窃听
+- **内网 / 本机**：网络层信任，无窃听风险
+- **明文 HTTP 跨网**：**不推荐**。v3 不实现 HMAC 签名，明文 HTTP 下 key 可被重放。v4+ 评估 HMAC。
+
 ## 后续计划
 
 - [ ] core 接入 LLM（OpenAI 兼容协议）
