@@ -1,20 +1,17 @@
 name: release
 
-# ⚠️ 临时性改写（方便测试 release workflow 逻辑）⚠️
+# ⚠️ 当前禁用（2026-06-07）⚠️
 #
-# 触发时机：完成合入主分支的 PR 时（pull_request event，type=closed 且 merged=true，
-#           target=main）。等价于"PR merge commit 已落 main 之后"。
-# 行为：完整跑通整个 release workflow 链路（checkout / 读版本 / 渲染 body /
-#       产物判定 / 模拟创建 / 模拟上传），但 **不实际调用 gh release create / upload**，
-#       所有可能产生外部副作用的步骤都用 echo 输出"将要做什么"以供核对。
+# 状态：workflow 文件保留但 release job 不会跑（if: false）——trigger 仍会触发，
+#       Actions 标签能看到 skipped 状态，但无任何副作用。
 #
-# 预期效果：每次 PR 被 merge 到 main 都会跑一次本 workflow，可在 Actions 标签
-#           看到完整日志，验证：
-#             - checkout 切到 main HEAD（squash commit 之后）是否正确
-#             - PR base.sha 作为对比基准，diff 能否正确反映本次 PR 改了什么
-#             - squash commit 场景下 render-release-notes 的归类是否正确
-#             - has_artifacts 判定逻辑（测试时固定为 false）
-#             - 模拟的 gh release create / upload 命令拼装是否正确
+# 历史：之前是 DRY-RUN 模式（PR 合入后触发，模拟 gh release create / upload），
+#       现在进一步禁用，连 DRY-RUN 都不跑。脚本 render-release-notes.sh 的改进
+#       仍然独立保留（commit 4f5a27b / cb8d17a / de3fac4）—— 重新启用时
+#       这些改进会自动生效。
+#
+# 恢复启用：把 release job 的 if: false 改回 if: github.event.pull_request.merged == true
+#           并按下面 "恢复原行为" 6 步去掉 DRY-RUN 标记。
 #
 # 恢复原行为（去掉 DRY-RUN 标记）：
 #   1) on: 改回 workflow_run + branches:[main] + types:[completed]
@@ -39,11 +36,12 @@ permissions:
 
 jobs:
   release:
-    # 临时：PR 合入后跑（merged=true 才算合入；单纯 close 不算）
-    name: '[DRY-RUN] 自动出 release（PR 合入后，临时测试）'
+    # ⚠️ 当前禁用：if: false 让 job 永远不跑。trigger 仍会触发（Actions 标签可见
+    #    skipped 记录），但无任何副作用。要重新启用就把 if 改回 merged == true。
+    name: '[DISABLED] 自动出 release（当前禁用）'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event.pull_request.merged == true
+    if: false
     steps:
       # PR 合并后，main HEAD 已包含 squash commit。checkout 到 main branch 即可拿到合并后状态。
       # 之前 PR opened 模式 checkout 到 pull_request.head.sha，merge 后改成 main branch。
