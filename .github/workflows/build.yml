@@ -26,8 +26,9 @@ permissions:
 
 jobs:
   # detect-changes：用 dorny/paths-filter 看本次事件是否动过 client/** 或
-  # versions/compat-matrix.json。两者都没动 → 跳过后续 quality / build-* / release，
-  # 节省 CI 分钟（PR 只改 docs/gateway/core 时尤其明显）。
+  # versions/compat-matrix.json。两者都没动 → 跳过 build-* / release，
+  # 节省 CI 分钟。quality 是必过闸门，与本 job 并行（不读取本输出），
+  # 任何 PR 都跑，docs/gateway/core 等非 client 变更不会再绕开验证。
   detect-changes:
     name: 检测客户端变更
     runs-on: ubuntu-latest
@@ -55,13 +56,13 @@ jobs:
 
   # 质量闸门：lint / typecheck / test + dedupe + secret scan 五关全过才放行后续平台构建。
   # 跑在 ubuntu-latest 上，速度最快且无平台差异。
-  # 客户端无变更时整体跳过（detect-changes.outputs.client != 'true'）。
+  # 与 detect-changes 并行（不 needs、不读其 outputs）：quality 是必过闸门，
+  # 任何 PR 都要跑，确保非 client 变更（docs / CI / gateway / core）不会绕过验证。
+  # build-* / release 仍走 detect-changes 的 client 输出决定要不要跑。
   quality:
     name: Lint / typecheck / test
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: detect-changes
-    if: needs.detect-changes.outputs.client == 'true'
     steps:
       # fetch-depth: 0 让 gitleaks 能算 PR base..head 的 commit 范围；
       # 默认 1（浅克隆）下 gitleaks 找不到 base commit，会 fatal: unknown revision。
