@@ -2,10 +2,13 @@ name: release
 
 # 触发时机：每次成功合入主分支时（即 build.yml 在 main 上跑完且 success）。
 # PR 合入 → push main → build.yml 跑 → 完成后 workflow_run 触发本 workflow。
-# 行为：有产物则挂载到 release，无产物（client 未变更）则跳过整个 release。
+# 行为：release 必出（每个 push 一个 tag），不被任何情况 skip；
+# 挂产物这一步单独看产物是否存在：
+#   - 有产物（client 变更）→ 正常挂 .app / .dmg / .deb / .AppImage / .msi / .exe
+#   - 无产物（仅 docs / CI / gateway / core 变更）→ 创建一个空 release（无附件），tag 仍生成
 #
-# 拆出来的原因：release 不再是 build.yml job 链的最后一环，
-# build 失败 / skip / 缺产物都不应影响 release workflow 本身的可见性。
+# 拆出来的原因：release 不再是 build.yml job 链的最后一环；
+# build 失败 → 整个 release workflow 跳过；client 变更是产物判定，与 release 创建解耦。
 
 on:
   workflow_run:
@@ -61,8 +64,8 @@ jobs:
           fi
 
       # 跨 workflow 拉产物：用 run-id 指定 build 那次 run，github-token 走 secrets.GITHUB_TOKEN。
-      # 产物存在与否决定后续要不要继续——这是新的"是否有 client 变更"判定点，
-      # 不再依赖 detect-changes.outputs.client 跨 job 传递。
+      # release 必出（每个 push 一个 tag），这里只用来决定后面"上传产物到 release"
+      # 那步要不要执行；产物缺失时 release 仍正常创建，只是不挂附件。
       - name: 下载所有平台产物
         id: download
         uses: actions/download-artifact@v5
@@ -89,15 +92,8 @@ jobs:
             echo "✗ 无产物（client 未变更，build-* 全部 skip）"
           fi
 
-      # 无产物 → 跳过整个 release，不打 tag、不挂产物。tag 命名空间不被 docs-only 合并污染。
-      - name: 跳过（无产物）
-        if: steps.check.outputs.has_artifacts != 'true'
-        run: |
-          echo "✓ 本次 push 无 client 变更产物，跳过 release"
-          echo "  适用场景：docs / CI / gateway / core 等非 client 路径的合并"
-
+      # release body 渲染：每个 push 都生成（commit log + 变更点），无论是否有产物。
       - name: 渲染 release body
-        if: steps.check.outputs.has_artifacts == 'true'
         run: |
           set -e
           BODY=$(bash .github/scripts/render-release-notes.sh "${{ steps.last.outputs.last }}")
@@ -106,8 +102,8 @@ jobs:
           cat /tmp/release-body.md
           echo "---- end ----"
 
+      # 创建 release 必跑——每个 push 一个 tag，哪怕没有产物附件。
       - name: 创建 GitHub Release
-        if: steps.check.outputs.has_artifacts == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
