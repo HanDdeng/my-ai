@@ -3,6 +3,8 @@
 import { loadConfig } from './config.js';
 import { buildServer } from './server.js';
 import { loadCompat } from './compat/load.js';
+import { openDatabase } from './db.js';
+import { AuthStore } from './auth/store.js';
 
 let compat;
 try {
@@ -17,7 +19,9 @@ try {
 }
 
 const cfg = loadConfig();
-const app = await buildServer(cfg, compat);
+// 持久层：打开 DB + 构造 AuthStore，buildServer 把它挂到 app 上供 middleware/routes 使用。
+const authStore = new AuthStore(openDatabase(cfg.GATEWAY_DB_PATH));
+const app = await buildServer(cfg, compat, authStore);
 
 try {
   await app.listen({ host: cfg.HOST, port: cfg.PORT });
