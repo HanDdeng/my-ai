@@ -2,16 +2,17 @@ name: release
 
 # ⚠️ 临时性改写（方便测试 release workflow 逻辑）⚠️
 #
-# 触发时机：创建合入主分支的 PR 时（pull_request event，target=main）。
+# 触发时机：完成合入主分支的 PR 时（pull_request event，type=closed 且 merged=true，
+#           target=main）。等价于"PR merge commit 已落 main 之后"。
 # 行为：完整跑通整个 release workflow 链路（checkout / 读版本 / 渲染 body /
 #       产物判定 / 模拟创建 / 模拟上传），但 **不实际调用 gh release create / upload**，
 #       所有可能产生外部副作用的步骤都用 echo 输出"将要做什么"以供核对。
 #
-# 预期效果：每次打开 / 同步 / 重新打开 PR 都会跑一次本 workflow，可在 Actions 标签
+# 预期效果：每次 PR 被 merge 到 main 都会跑一次本 workflow，可在 Actions 标签
 #           看到完整日志，验证：
-#             - checkout 是否切到 PR 头
-#             - 版本号读取是否正确
-#             - render-release-notes.sh 输出是否符合预期
+#             - checkout 切到 main HEAD（squash commit 之后）是否正确
+#             - PR base.sha 作为对比基准，diff 能否正确反映本次 PR 改了什么
+#             - squash commit 场景下 render-release-notes 的归类是否正确
 #             - has_artifacts 判定逻辑（测试时固定为 false）
 #             - 模拟的 gh release create / upload 命令拼装是否正确
 #
@@ -24,9 +25,10 @@ name: release
 #   6) 把 "[DRY-RUN]" 两个 step 里的 echo 改回 gh release create / upload
 
 on:
-  # 临时：PR 触发（target=main）—— 等价于"合入主分支前的最后状态"
+  # 临时：PR 合并到 main 后触发（type=closed + merged=true）。
+  # 注意：closed 也会包含"被 close 但没 merge"的 PR，所以 job if 还要再过一道 merged 闸门。
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [closed]
     branches: [main]
 
 permissions:
@@ -37,18 +39,18 @@ permissions:
 
 jobs:
   release:
-    # 临时：PR 触发时跑
-    name: '[DRY-RUN] 自动出 release（PR 触发，临时测试）'
+    # 临时：PR 合入后跑（merged=true 才算合入；单纯 close 不算）
+    name: '[DRY-RUN] 自动出 release（PR 合入后，临时测试）'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event_name == 'pull_request'
+    if: github.event.pull_request.merged == true
     steps:
-      # pull_request 默认 checkout 的是 PR 合并提交；为与 release body 里的 commit log
-      # 对齐（diff 起点是 PR head），显式切到 PR 头 SHA。
-      - name: Checkout triggering commit
+      # PR 合并后，main HEAD 已包含 squash commit。checkout 到 main branch 即可拿到合并后状态。
+      # 之前 PR opened 模式 checkout 到 pull_request.head.sha，merge 后改成 main branch。
+      - name: Checkout main HEAD（已含 squash commit）
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.base.ref }}
           fetch-depth: 0
 
       # render-release-notes.sh 用 node -e 读 matrix；此 job 不装 pnpm，故 cache 关掉。
@@ -65,21 +67,20 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "client 版本：$v"
 
-      # DRY-RUN 模式：对比基准用 origin/main 当前 SHA（不是 last release tag）。
-      # 这样 release body 反映"这个 PR 改了什么"（main..HEAD 的 diff），
-      # 而不是"上次 release 以来改了什么"——后者在 PR 阶段会把历史 commit
-      # 之间的变更也算进来，掩盖 PR 本身的边界。
-      # 真正的 production release（恢复原 trigger 后）会用 last release tag。
-      - name: '读对比基准（DRY-RUN: origin/main）'
+      # DRY-RUN 模式：对比基准用 PR 的 base.sha（merge 前 main 状态）。
+      # 这样 release body 反映"这个 PR 改了什么"（base.sha..HEAD 的 diff），
+      # 也就是 squash commit 引入的所有内容。
+      # production release（恢复原 trigger 后）会用 last release tag 作基准。
+      - name: '读对比基准（DRY-RUN: PR base.sha）'
         id: last
         run: |
-          last=$(git rev-parse origin/main 2>/dev/null || echo "")
-          if [ -z "$last" ]; then
-            echo "⚠ 未取到 origin/main，diff 段可能为空"
+          base_sha=${{ github.event.pull_request.base.sha }}
+          echo "last=$base_sha" >> "$GITHUB_OUTPUT"
+          if [ -z "$base_sha" ]; then
+            echo "⚠ 未取到 PR base.sha，diff 段可能为空"
           else
-            echo "对比基准 origin/main：$last"
+            echo "对比基准 PR base.sha（merge 前 main 状态）：$base_sha"
           fi
-          echo "last=$last" >> "$GITHUB_OUTPUT"
 
       # 临时：跳过实际下载（PR 触发时与 build.yml 并行跑，跨 workflow 拉产物不现实）。
       # has_artifacts 在下一步硬编码为 false，模拟"client 未变更"路径。
