@@ -19,6 +19,7 @@
     "@fastify/websocket": "catalog:",
     "better-sqlite3": "catalog:",
     "fastify": "catalog:",
+    "fastify-plugin": "catalog:",
     "pino": "catalog:",
     "pino-pretty": "catalog:",
     "semver": "catalog:",
