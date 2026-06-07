@@ -12,15 +12,26 @@ const Schema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   // CORS 白名单，逗号分隔字符串。
   CORS_ORIGINS: z.string().default('http://localhost:5173,tauri://localhost'),
+
+  // === v3 新增：远程配对与鉴权 ===
+  // 配对是否公开：true=自由配对, false=需要配对码解析/或 pair key
+  GATEWAY_PAIRING_PUBLIC: z.coerce.boolean().default(false),
+  // 网关层配对 key：匹配即配对（任何模式都 bypass code 流程）
+  GATEWAY_PAIR_KEY: z.string().optional(),
+  // 客户端唯一键保存时效（秒）；0 或不配 → 不启动清理
+  GATEWAY_PAIRING_KEY_TTL: z.coerce.number().int().min(0).optional(),
+  // SQLite DB 文件路径
+  GATEWAY_DB_PATH: z.string().default('./gateway.db'),
 });
 
 export type Config = z.infer<typeof Schema>;
 
 /**
  * 加载并校验环境变量；校验失败直接退出，避免半配置状态下启动。
+ * 接受可选 env 参数以支持测试。
  */
-export function loadConfig(): Config {
-  const parsed = Schema.safeParse(process.env);
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
+  const parsed = Schema.safeParse(env);
   if (!parsed.success) {
     console.error('Invalid gateway config:', parsed.error.flatten().fieldErrors);
     process.exit(1);
