@@ -21,6 +21,8 @@ tauri-build = { version = "2.0", features = [] }
 tauri = { version = "2.1", features = [] }
 # 提供 http client 能力（前端可通过 @tauri-apps/plugin-http 调用，避免 CORS）。
 tauri-plugin-http = { version = "2.0", features = [] }
+# 安全存储客户端凭据（pairing token、refresh token 等）的 Tauri 插件。
+tauri-plugin-stronghold = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
