@@ -101,6 +101,47 @@ v3 假设 gateway 部署在以下任一环境：
 - **内网 / 本机**：网络层信任，无窃听风险
 - **明文 HTTP 跨网**：**不推荐**。v3 不实现 HMAC 签名，明文 HTTP 下 key 可被重放。v4+ 评估 HMAC。
 
+### 网关环境变量
+
+`gateway/.env.example` 列了完整清单（[点此查看](./gateway/.env.example)）。v3 新增的 4 项：
+
+| 变量                      | 必填 | 默认           | 说明                                                                                |
+| ------------------------- | ---- | -------------- | ----------------------------------------------------------------------------------- |
+| `GATEWAY_PAIRING_PUBLIC`  | 否   | `false`        | 公开模式开关。`true` = 任何客户端可配对；`false` = 需要配对码或 pair key            |
+| `GATEWAY_PAIR_KEY`        | 否   | （空）         | 管理员通道 key。客户端表单提交此值时直接配对（任何模式都 bypass code 流程）         |
+| `GATEWAY_PAIRING_KEY_TTL` | 否   | （空）         | 客户端唯一键保存时效（秒）。留空或 `0` = 不启动清理；典型值 `3600`/`86400`/`604800` |
+| `GATEWAY_DB_PATH`         | 否   | `./gateway.db` | SQLite 文件路径（相对路径相对 cwd）                                                 |
+
+**配置方式**：
+
+```bash
+# 方式 1：复制模板（首次 clone 后）
+pnpm setup    # 复制 .env.example → gateway/.env
+# 编辑 gateway/.env，按需填入上述变量
+
+# 方式 2：直接 shell 注入（适合容器化 / CI）
+GATEWAY_PAIRING_PUBLIC=true \
+GATEWAY_PAIR_KEY=admin-secret \
+GATEWAY_PAIRING_KEY_TTL=86400 \
+node gateway/dist/cli.js start
+```
+
+**快速验证**：
+
+```bash
+# 公开模式快速测（任何客户端可配对）
+GATEWAY_PAIRING_PUBLIC=true node gateway/dist/cli.js start
+
+# 私有模式 + pair key（推荐家用 / 小团队）
+GATEWAY_PAIR_KEY=admin-secret node gateway/dist/cli.js start
+
+# 私有模式 + 自动过期清理（1d 失效）
+GATEWAY_PAIR_KEY=admin-secret GATEWAY_PAIRING_KEY_TTL=86400 node gateway/dist/cli.js start
+
+# 查看已配对客户端
+my-ai-gateway list
+```
+
 ## 后续计划
 
 - [ ] core 接入 LLM（OpenAI 兼容协议）
