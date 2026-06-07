@@ -22,7 +22,8 @@ function App() {
     const run = async () => {
       // heartbeat 失败时**不**把 HEALTHY 变 PAIR_FAILED（避免抖动）
       const prev = status;
-      const next = await handshake(GATEWAY_URL, COMPAT);
+      // clientKey 在 v3 阶段先传 null（Task 5.6 接入 tauri-plugin-stronghold 后从 store 读）
+      const next = await handshake(GATEWAY_URL, COMPAT, null);
       if (cancelled) {
         return;
       }
@@ -45,7 +46,8 @@ function App() {
 
   const handleTest = async () => {
     setStatus('PAIRING');
-    const next = await handshake(GATEWAY_URL, COMPAT);
+    // clientKey 同上，v3 阶段先传 null
+    const next = await handshake(GATEWAY_URL, COMPAT, null);
     setStatus(next.status);
     if (next.version) {
       setVersion(next.version);

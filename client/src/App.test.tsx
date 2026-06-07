@@ -1,9 +1,22 @@
 // App 根组件测试：状态机 + heartbeat + banner 关闭语义。
+// mock 响应走 v3 新格式：{ data: {ok, service, version, schema}, code, message }
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import App from './App.js';
 
 const GATEWAY_URL = 'http://gateway.test';
+
+// 新格式下的成功响应构造器
+function mockOk(version: string) {
+  return new Response(
+    JSON.stringify({
+      data: { ok: true, service: 'gateway', version, schema: 1 },
+      code: 0,
+      message: 'ok',
+    }),
+    { status: 200 },
+  );
+}
 
 describe('App 状态机', () => {
   beforeEach(() => {
@@ -13,13 +26,7 @@ describe('App 状态机', () => {
     // 注入默认 fetch mock：成功 + version 在范围内
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({ ok: true, service: 'gateway', version: '0.0.2', schema: 1 }),
-            { status: 200 },
-          ),
-      ),
+      vi.fn(async () => mockOk('0.0.2')),
     );
     // 注入 import.meta.env
     vi.stubEnv('VITE_GATEWAY_URL', GATEWAY_URL);
@@ -46,13 +53,7 @@ describe('App 状态机', () => {
   it('fetch 成功 + version out of range → MISMATCH + banner 显示', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({ ok: true, service: 'gateway', version: '1.0.0', schema: 1 }),
-            { status: 200 },
-          ),
-      ),
+      vi.fn(async () => mockOk('1.0.0')),
     );
     render(<App />);
     await act(async () => {
@@ -65,13 +66,7 @@ describe('App 状态机', () => {
   it('点 banner 关闭按钮 → banner 消失，session 内不重亮', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({ ok: true, service: 'gateway', version: '1.0.0', schema: 1 }),
-            { status: 200 },
-          ),
-      ),
+      vi.fn(async () => mockOk('1.0.0')),
     );
     render(<App />);
     await act(async () => {
