@@ -1,41 +1,54 @@
 name: release
 
-# 触发时机：每次成功合入主分支时（即 build.yml 在 main 上跑完且 success）。
-# PR 合入 → push main → build.yml 跑 → 完成后 workflow_run 触发本 workflow。
-# 行为：release 必出（每个 push 一个 tag），不被任何情况 skip；
-# 挂产物这一步单独看产物是否存在：
-#   - 有产物（client 变更）→ 正常挂 .app / .dmg / .deb / .AppImage / .msi / .exe
-#   - 无产物（仅 docs / CI / gateway / core 变更）→ 创建一个空 release（无附件），tag 仍生成
+# ⚠️ 临时性改写（方便测试 release workflow 逻辑）⚠️
 #
-# 拆出来的原因：release 不再是 build.yml job 链的最后一环；
-# build 失败 → 整个 release workflow 跳过；client 变更是产物判定，与 release 创建解耦。
+# 触发时机：创建合入主分支的 PR 时（pull_request event，target=main）。
+# 行为：完整跑通整个 release workflow 链路（checkout / 读版本 / 渲染 body /
+#       产物判定 / 模拟创建 / 模拟上传），但 **不实际调用 gh release create / upload**，
+#       所有可能产生外部副作用的步骤都用 echo 输出"将要做什么"以供核对。
+#
+# 预期效果：每次打开 / 同步 / 重新打开 PR 都会跑一次本 workflow，可在 Actions 标签
+#           看到完整日志，验证：
+#             - checkout 是否切到 PR 头
+#             - 版本号读取是否正确
+#             - render-release-notes.sh 输出是否符合预期
+#             - has_artifacts 判定逻辑（测试时固定为 false）
+#             - 模拟的 gh release create / upload 命令拼装是否正确
+#
+# 恢复原行为（去掉 DRY-RUN 标记）：
+#   1) on: 改回 workflow_run + branches:[main] + types:[completed]
+#   2) job if: 改回 github.event.workflow_run.conclusion == 'success'
+#   3) checkout ref: 改回 ${{ github.event.workflow_run.head_sha }}
+#   4) 取消 "下载所有平台产物" 的 if: false
+#   5) 取消 "检查是否有产物" 里 has_artifacts 的硬编码
+#   6) 把 "[DRY-RUN]" 两个 step 里的 echo 改回 gh release create / upload
 
 on:
-  workflow_run:
-    workflows: ['build']
-    types: [completed]
+  # 临时：PR 触发（target=main）—— 等价于"合入主分支前的最后状态"
+  pull_request:
+    types: [opened, synchronize, reopened]
     branches: [main]
 
 permissions:
-  # gh release create / upload 需要写仓库权限。
+  # gh release create / upload 需要写仓库权限。DRY-RUN 模式下也保留以保持权限声明一致。
   contents: write
-  # 跨 workflow 拉产物（actions/download-artifact 的 github-token 参数）必须 actions: read。
+  # 跨 workflow 拉产物必须 actions: read。DRY-RUN 模式下不实际下载，但保留声明便于恢复时无需补加。
   actions: read
 
 jobs:
   release:
-    # build 失败 / 取消 → 直接跳过（"成功合入" 含 build CI 成功这一层）。
-    name: 自动出 release（push 到 main 后）
+    # 临时：PR 触发时跑
+    name: '[DRY-RUN] 自动出 release（PR 触发，临时测试）'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'pull_request'
     steps:
-      # workflow_run 默认 checkout 的是 default branch HEAD，不是触发 build 的 commit。
-      # 必须显式切到 head_sha，否则 release body 里的 git log / 版本号都会错位。
+      # pull_request 默认 checkout 的是 PR 合并提交；为与 release body 里的 commit log
+      # 对齐（diff 起点是 PR head），显式切到 PR 头 SHA。
       - name: Checkout triggering commit
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       # render-release-notes.sh 用 node -e 读 matrix；此 job 不装 pnpm，故 cache 关掉。
@@ -63,36 +76,37 @@ jobs:
             echo "上次 release tag：$last"
           fi
 
-      # 跨 workflow 拉产物：用 run-id 指定 build 那次 run，github-token 走 secrets.GITHUB_TOKEN。
-      # release 必出（每个 push 一个 tag），这里只用来决定后面"上传产物到 release"
-      # 那步要不要执行；产物缺失时 release 仍正常创建，只是不挂附件。
+      # 临时：跳过实际下载（PR 触发时与 build.yml 并行跑，跨 workflow 拉产物不现实）。
+      # has_artifacts 在下一步硬编码为 false，模拟"client 未变更"路径。
       - name: 下载所有平台产物
-        id: download
+        if: false
         uses: actions/download-artifact@v5
         with:
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # 恢复时把下面三行解注：
+          # run-id: ${{ github.event.workflow_run.id }}
+          # github-token: ${{ secrets.GITHUB_TOKEN }}
           path: artifacts
           pattern: my-ai-client-*
           merge-multiple: true
-          # 不存在匹配产物时默认会报错并 fail job；这里改成 warn 让后续 step 自己判断。
-          # 但 download-artifact v5 的 if-no-files-found 只在同 workflow 内有效，跨 workflow 行为不同——
-          # 保守起见用 try-catch 包裹，看后续 check step 的输出决定。
           if-no-files-found: warn
 
       - name: 检查是否有产物
         id: check
         run: |
-          if compgen -G "artifacts/*" > /dev/null; then
-            count=$(find artifacts -maxdepth 1 -type f | wc -l)
-            echo "has_artifacts=true" >> "$GITHUB_OUTPUT"
-            echo "✓ 检出 $count 个产物文件"
-          else
-            echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
-            echo "✗ 无产物（client 未变更，build-* 全部 skip）"
-          fi
+          # 临时：DRY-RUN 模式固定为 false（实际 download step 已被 skip）
+          echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
+          echo "（DRY-RUN：download step 已 skip，has_artifacts 固定为 false）"
+          # 恢复时把上面两行换回下面的真实检测：
+          # if compgen -G "artifacts/*" > /dev/null; then
+          #   count=$(find artifacts -maxdepth 1 -type f | wc -l)
+          #   echo "has_artifacts=true" >> "$GITHUB_OUTPUT"
+          #   echo "✓ 检出 $count 个产物文件"
+          # else
+          #   echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
+          #   echo "✗ 无产物（client 未变更，build-* 全部 skip）"
+          # fi
 
-      # release body 渲染：每个 push 都生成（commit log + 变更点），无论是否有产物。
+      # 渲染 body 仍真实跑——可看 commit log diff 是否正确反映 PR 内容。
       - name: 渲染 release body
         run: |
           set -e
@@ -102,54 +116,56 @@ jobs:
           cat /tmp/release-body.md
           echo "---- end ----"
 
-      # 创建 release 必跑——每个 push 一个 tag，哪怕没有产物附件。
-      - name: 创建 GitHub Release
+      # 临时：DRY-RUN——只 echo"将要做什么"，不调 gh release create。
+      - name: '[DRY-RUN] 创建 GitHub Release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           DATE=$(date +%Y%m%d)
           SHORT_SHA=$(git rev-parse --short HEAD)
           TAG="release-${DATE}-${SHORT_SHA}"
-          echo "tag=$TAG"
-          gh release create "$TAG" \
-            --title "my-ai $TAG" \
-            --notes-file /tmp/release-body.md \
-            --target main
-          echo "✓ release $TAG 已创建"
+          echo "[DRY-RUN] would run: gh release create $TAG \\"
+          echo "    --title 'my-ai $TAG' \\"
+          echo "    --notes-file /tmp/release-body.md \\"
+          echo "    --target ${{ github.event.pull_request.base.ref }}"
+          echo "---- body 前 30 行预览 ----"
+          head -30 /tmp/release-body.md || echo "(body file not found)"
+          echo "---- end ----"
+          # 恢复时把上面 5 行 echo 换回：
+          # gh release create "$TAG" \
+          #   --title "my-ai $TAG" \
+          #   --notes-file /tmp/release-body.md \
+          #   --target main
+          # echo "✓ release $TAG 已创建"
 
-      # macOS .app 是目录，gh release upload 只接受文件 → 先 zip 成 *-app.zip。
-      # zip 后原 .app 目录保留也无所谓，下一步用 -type f 自动过滤掉。
-      - name: macOS .app 打包为 zip
+      # macOS .app 打包：DRY-RUN 下 has_artifacts 固定为 false，理论上这步被 skip；
+      # 但万一未来调整了 has_artifacts 判定，这里也改成 echo。
+      - name: '[DRY-RUN] macOS .app 打包为 zip'
         if: steps.check.outputs.has_artifacts == 'true'
         run: |
-          set -e
-          cd artifacts
-          if compgen -G "*.app" > /dev/null; then
-            for app in *.app; do
-              zip -ry "${app%.app}-macos-universal-app.zip" "$app"
-              echo "已打包：$app → ${app%.app}-macos-universal-app.zip"
+          echo "[DRY-RUN] would zip .app directories in artifacts/"
+          if compgen -G "artifacts/*.app" > /dev/null; then
+            for app in artifacts/*.app; do
+              echo "  would zip: $app → ${app%.app}-macos-universal-app.zip"
             done
           else
             echo "（未发现 *.app，跳过 zip 步骤）"
           fi
 
-      - name: 上传产物到 release
+      # 临时：DRY-RUN——只 echo"将要上传什么"，不调 gh release upload。
+      - name: '[DRY-RUN] 上传产物到 release'
         if: steps.check.outputs.has_artifacts == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
           DATE=$(date +%Y%m%d)
           SHORT_SHA=$(git rev-parse --short HEAD)
           TAG="release-${DATE}-${SHORT_SHA}"
-          # 只挂顶层文件（.app 目录用 -type f 自动过滤；.app/Contents/... 用 -maxdepth 1 排除）
-          mapfile -t files < <(find artifacts -maxdepth 1 -type f | sort)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "✖ artifacts 下没有可挂的文件，release upload 失败"
-            ls -la artifacts
-            exit 1
+          echo "[DRY-RUN] would run: gh release upload $TAG <files>"
+          if compgen -G "artifacts/*" > /dev/null; then
+            echo "files that would be uploaded:"
+            find artifacts -maxdepth 1 -type f | sort | sed 's/^/  - /'
+          else
+            echo "（无产物可挂——DRY-RUN 默认不下载）"
           fi
-          echo "将上传到 release $TAG 的文件（${#files[@]} 个）："
-          printf '  - %s\n' "${files[@]}"
-          gh release upload "$TAG" "${files[@]}"
-          echo "✓ 所有产物已挂到 release $TAG"
+          # 恢复时换回真实 mapfile + gh release upload 逻辑
