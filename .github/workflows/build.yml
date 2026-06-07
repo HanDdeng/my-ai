@@ -3,13 +3,12 @@ name: build
 on:
   # CI 触发规则：
   #   1) PR opened/synchronize/reopened（目标分支 main） → 跑 quality + 三平台 build
-  #   2) push 到 main（PR 合入后触发） → 跑 quality + 三平台 build
-  #      （自动出 release 由独立的 release.yml 通过 workflow_run 监听本 workflow 完成事件后触发）
-  #   3) workflow_dispatch → 手动重跑（用于紧急排查）
+  #   2) workflow_dispatch → 手动重跑（用于紧急排查）
+  # 注：合入 main 后不再单独跑 build，避免与 PR build 重复消耗 CI 分钟数。
+  #     release.yml 当前是禁用状态（if: false）；恢复"合入即发布"时需重新设计触发链
+  #     （例如复用 PR build 产物，而不是 push 重建）。
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [main]
-  push:
     branches: [main]
   workflow_dispatch:
 

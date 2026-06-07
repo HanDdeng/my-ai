@@ -1,10 +1,10 @@
 name: compat-matrix check
 
 on:
+  # 只在 PR 阶段（opened / synchronize / reopened）跑；合入 main 后不再单独跑一次，
+  # 避免与 PR 检查重复消耗 CI 分钟数。与 version-bump-check 保持一致。
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [main]
-  push:
     branches: [main]
 
 jobs:
