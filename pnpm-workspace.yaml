@@ -27,3 +27,8 @@ catalog:
   # 用于版本范围匹配（v2 compat 机制）
   semver: ^7.6.3
   '@types/semver': ^7.5.8
+
+  # 用于网关持久化客户端配对记录（v3 鉴权机制）
+  better-sqlite3: ^11.5.0
+  # better-sqlite3 的 TypeScript 类型
+  '@types/better-sqlite3': ^7.6.11

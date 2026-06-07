@@ -17,6 +17,7 @@
   "dependencies": {
     "@fastify/cors": "catalog:",
     "@fastify/websocket": "catalog:",
+    "better-sqlite3": "catalog:",
     "fastify": "catalog:",
     "pino": "catalog:",
     "pino-pretty": "catalog:",
@@ -25,6 +26,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "catalog:",
     "@types/node": "catalog:",
     "@types/semver": "catalog:",
     "eslint": "catalog:",
