@@ -3,8 +3,9 @@ name: build
 on:
   # CI 触发规则：
   #   1) PR opened/synchronize/reopened（目标分支 main） → 跑 quality + 三平台 build
-  #   2) push 到 main（PR 合入后触发） → 跑 quality + 三平台 build + 自动出 release
-  #   3) workflow_dispatch → 手动重跑（用于紧急排查或 release.yml 删除后补跑）
+  #   2) push 到 main（PR 合入后触发） → 跑 quality + 三平台 build
+  #      （自动出 release 由独立的 release.yml 通过 workflow_run 监听本 workflow 完成事件后触发）
+  #   3) workflow_dispatch → 手动重跑（用于紧急排查）
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
@@ -341,116 +342,3 @@ jobs:
           name: my-ai-client-${{ steps.version.outputs.version }}-windows-x64-nsis
           path: client/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
           if-no-files-found: error
-
-  # release：仅在 push 到 main 且确实有客户端变更时跑。
-  # 之前在独立的 release.yml 里，现在并入 build.yml，让 release 严格依赖三平台 build 成功。
-  # 三平台 build 任一失败 → release 不创建，避免没产物的 release 出现。
-  release:
-    name: 自动出 release（push 到 main 后）
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [detect-changes, build-macos, build-linux, build-windows]
-    if: github.event_name == 'push' && needs.detect-changes.outputs.client == 'true'
-    permissions:
-      # gh release create / upload 需要写仓库权限。
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          # render-release-notes.sh 要算 last_tag..HEAD 的 git log，必须全量历史。
-          fetch-depth: 0
-
-      # render-release-notes.sh 用 node -e 读 matrix；此 job 不装 pnpm，故 cache 关掉。
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - name: 读 client 版本
-        id: version
-        run: |
-          v=$(node -p "require('./versions/compat-matrix.json').components.client.version")
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          echo "client 版本：$v"
-
-      - name: 读上次 release tag
-        id: last
-        run: |
-          last=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          echo "last=$last" >> "$GITHUB_OUTPUT"
-          if [ -z "$last" ]; then
-            echo "无上次 release（首次出 baseline）"
-          else
-            echo "上次 release tag：$last"
-          fi
-
-      - name: 计算新 release tag
-        id: tag
-        run: |
-          DATE=$(date +%Y%m%d)
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          TAG="release-${DATE}-${SHORT_SHA}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "新 release tag：$TAG"
-
-      - name: 渲染 release body
-        run: |
-          set -e
-          BODY=$(bash .github/scripts/render-release-notes.sh "${{ steps.last.outputs.last }}")
-          echo "$BODY" > /tmp/release-body.md
-          echo "---- release body 预览 ----"
-          cat /tmp/release-body.md
-          echo "---- end ----"
-
-      - name: 创建 GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${{ steps.tag.outputs.tag }}" \
-            --title "my-ai ${{ steps.tag.outputs.tag }}" \
-            --notes-file /tmp/release-body.md \
-            --target main
-          echo "✓ release ${{ steps.tag.outputs.tag }} 已创建"
-
-      # 把上游三个 build-* 任务的 6 个产物全部下载到 artifacts/ 目录。
-      # merge-multiple: true → 不按 artifact 名建子目录，直接平铺到 artifacts/。
-      - name: 下载所有平台产物
-        uses: actions/download-artifact@v5
-        with:
-          path: artifacts
-          pattern: my-ai-client-*
-          merge-multiple: true
-
-      # macOS .app 是目录，gh release upload 只接受文件 → 先 zip 成 *-app.zip。
-      # zip 后原 .app 目录保留也无所谓，下一步用 -type f 自动过滤掉。
-      - name: macOS .app 打包为 zip
-        run: |
-          set -e
-          cd artifacts
-          if compgen -G "*.app" > /dev/null; then
-            for app in *.app; do
-              zip -ry "${app%.app}-macos-universal-app.zip" "$app"
-              echo "已打包：$app → ${app%.app}-macos-universal-app.zip"
-            done
-          else
-            echo "（未发现 *.app，跳过 zip 步骤）"
-          fi
-
-      - name: 上传产物到 release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          # 只挂顶层文件（.app 目录用 -type f 自动过滤；.app/Contents/... 用 -maxdepth 1 排除）
-          mapfile -t files < <(find artifacts -maxdepth 1 -type f | sort)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "✖ artifacts 下没有可挂的文件，release upload 失败"
-            ls -la artifacts
-            exit 1
-          fi
-          echo "将上传到 release 的文件（${#files[@]} 个）："
-          printf '  - %s\n' "${files[@]}"
-          gh release upload "${{ steps.tag.outputs.tag }}" "${files[@]}"
-          echo "✓ 所有产物已挂到 release ${{ steps.tag.outputs.tag }}"

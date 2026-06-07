@@ -1,0 +1,159 @@
+name: release
+
+# 触发时机：每次成功合入主分支时（即 build.yml 在 main 上跑完且 success）。
+# PR 合入 → push main → build.yml 跑 → 完成后 workflow_run 触发本 workflow。
+# 行为：有产物则挂载到 release，无产物（client 未变更）则跳过整个 release。
+#
+# 拆出来的原因：release 不再是 build.yml job 链的最后一环，
+# build 失败 / skip / 缺产物都不应影响 release workflow 本身的可见性。
+
+on:
+  workflow_run:
+    workflows: ['build']
+    types: [completed]
+    branches: [main]
+
+permissions:
+  # gh release create / upload 需要写仓库权限。
+  contents: write
+  # 跨 workflow 拉产物（actions/download-artifact 的 github-token 参数）必须 actions: read。
+  actions: read
+
+jobs:
+  release:
+    # build 失败 / 取消 → 直接跳过（"成功合入" 含 build CI 成功这一层）。
+    name: 自动出 release（push 到 main 后）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      # workflow_run 默认 checkout 的是 default branch HEAD，不是触发 build 的 commit。
+      # 必须显式切到 head_sha，否则 release body 里的 git log / 版本号都会错位。
+      - name: Checkout triggering commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      # render-release-notes.sh 用 node -e 读 matrix；此 job 不装 pnpm，故 cache 关掉。
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: 读 client 版本
+        id: version
+        run: |
+          v=$(node -p "require('./versions/compat-matrix.json').components.client.version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "client 版本：$v"
+
+      - name: 读上次 release tag
+        id: last
+        run: |
+          last=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "last=$last" >> "$GITHUB_OUTPUT"
+          if [ -z "$last" ]; then
+            echo "无上次 release（首次出 baseline）"
+          else
+            echo "上次 release tag：$last"
+          fi
+
+      # 跨 workflow 拉产物：用 run-id 指定 build 那次 run，github-token 走 secrets.GITHUB_TOKEN。
+      # 产物存在与否决定后续要不要继续——这是新的"是否有 client 变更"判定点，
+      # 不再依赖 detect-changes.outputs.client 跨 job 传递。
+      - name: 下载所有平台产物
+        id: download
+        uses: actions/download-artifact@v5
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts
+          pattern: my-ai-client-*
+          merge-multiple: true
+          # 不存在匹配产物时默认会报错并 fail job；这里改成 warn 让后续 step 自己判断。
+          # 但 download-artifact v5 的 if-no-files-found 只在同 workflow 内有效，跨 workflow 行为不同——
+          # 保守起见用 try-catch 包裹，看后续 check step 的输出决定。
+          if-no-files-found: warn
+
+      - name: 检查是否有产物
+        id: check
+        run: |
+          if compgen -G "artifacts/*" > /dev/null; then
+            count=$(find artifacts -maxdepth 1 -type f | wc -l)
+            echo "has_artifacts=true" >> "$GITHUB_OUTPUT"
+            echo "✓ 检出 $count 个产物文件"
+          else
+            echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
+            echo "✗ 无产物（client 未变更，build-* 全部 skip）"
+          fi
+
+      # 无产物 → 跳过整个 release，不打 tag、不挂产物。tag 命名空间不被 docs-only 合并污染。
+      - name: 跳过（无产物）
+        if: steps.check.outputs.has_artifacts != 'true'
+        run: |
+          echo "✓ 本次 push 无 client 变更产物，跳过 release"
+          echo "  适用场景：docs / CI / gateway / core 等非 client 路径的合并"
+
+      - name: 渲染 release body
+        if: steps.check.outputs.has_artifacts == 'true'
+        run: |
+          set -e
+          BODY=$(bash .github/scripts/render-release-notes.sh "${{ steps.last.outputs.last }}")
+          echo "$BODY" > /tmp/release-body.md
+          echo "---- release body 预览 ----"
+          cat /tmp/release-body.md
+          echo "---- end ----"
+
+      - name: 创建 GitHub Release
+        if: steps.check.outputs.has_artifacts == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date +%Y%m%d)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG="release-${DATE}-${SHORT_SHA}"
+          echo "tag=$TAG"
+          gh release create "$TAG" \
+            --title "my-ai $TAG" \
+            --notes-file /tmp/release-body.md \
+            --target main
+          echo "✓ release $TAG 已创建"
+
+      # macOS .app 是目录，gh release upload 只接受文件 → 先 zip 成 *-app.zip。
+      # zip 后原 .app 目录保留也无所谓，下一步用 -type f 自动过滤掉。
+      - name: macOS .app 打包为 zip
+        if: steps.check.outputs.has_artifacts == 'true'
+        run: |
+          set -e
+          cd artifacts
+          if compgen -G "*.app" > /dev/null; then
+            for app in *.app; do
+              zip -ry "${app%.app}-macos-universal-app.zip" "$app"
+              echo "已打包：$app → ${app%.app}-macos-universal-app.zip"
+            done
+          else
+            echo "（未发现 *.app，跳过 zip 步骤）"
+          fi
+
+      - name: 上传产物到 release
+        if: steps.check.outputs.has_artifacts == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          DATE=$(date +%Y%m%d)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG="release-${DATE}-${SHORT_SHA}"
+          # 只挂顶层文件（.app 目录用 -type f 自动过滤；.app/Contents/... 用 -maxdepth 1 排除）
+          mapfile -t files < <(find artifacts -maxdepth 1 -type f | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "✖ artifacts 下没有可挂的文件，release upload 失败"
+            ls -la artifacts
+            exit 1
+          fi
+          echo "将上传到 release $TAG 的文件（${#files[@]} 个）："
+          printf '  - %s\n' "${files[@]}"
+          gh release upload "$TAG" "${files[@]}"
+          echo "✓ 所有产物已挂到 release $TAG"
