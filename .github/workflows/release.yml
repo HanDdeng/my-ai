@@ -65,16 +65,21 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "client 版本：$v"
 
-      - name: 读上次 release tag
+      # DRY-RUN 模式：对比基准用 origin/main 当前 SHA（不是 last release tag）。
+      # 这样 release body 反映"这个 PR 改了什么"（main..HEAD 的 diff），
+      # 而不是"上次 release 以来改了什么"——后者在 PR 阶段会把历史 commit
+      # 之间的变更也算进来，掩盖 PR 本身的边界。
+      # 真正的 production release（恢复原 trigger 后）会用 last release tag。
+      - name: '读对比基准（DRY-RUN: origin/main）'
         id: last
         run: |
-          last=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          echo "last=$last" >> "$GITHUB_OUTPUT"
+          last=$(git rev-parse origin/main 2>/dev/null || echo "")
           if [ -z "$last" ]; then
-            echo "无上次 release（首次出 baseline）"
+            echo "⚠ 未取到 origin/main，diff 段可能为空"
           else
-            echo "上次 release tag：$last"
+            echo "对比基准 origin/main：$last"
           fi
+          echo "last=$last" >> "$GITHUB_OUTPUT"
 
       # 临时：跳过实际下载（PR 触发时与 build.yml 并行跑，跨 workflow 拉产物不现实）。
       # has_artifacts 在下一步硬编码为 false，模拟"client 未变更"路径。
