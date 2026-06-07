@@ -1,7 +1,10 @@
-// agent 列表路由：返回 registry 中所有 agent 的描述。
+// core 端的 agents 列表端点。v3 起走新响应包装。
 import type { FastifyInstance } from 'fastify';
+import { ok } from '../response.js';
 import type { AgentRegistry } from '../agent/registry.js';
 
 export async function agentRoutes(app: FastifyInstance, registry: AgentRegistry) {
-  app.get('/v1/agents', async () => ({ items: registry.list() }));
+  app.get('/v1/agents', async () => {
+    return ok(registry.list());
+  });
 }

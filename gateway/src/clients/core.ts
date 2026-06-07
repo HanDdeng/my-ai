@@ -35,30 +35,18 @@ export class CoreClient {
   }
 
   /**
-   * 透传任意 HTTP 方法到 core：网关层路由把 client 请求原样转发。
-   * @param path 上游路径
-   * @param init 方法/请求体/请求头
+   * 列出上游 agents：v3 起 core 走新响应包装，返回 data 字段。
    */
-  async forward(
-    path: string,
-    init: {
-      method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-      body?: unknown;
-      headers?: Record<string, string>;
-    },
-  ) {
-    const opts: Parameters<typeof request>[1] = {
-      method: init.method,
-      headers: {
-        'content-type': 'application/json',
-        ...(init.headers ?? {}),
-      },
+  async listAgents(): Promise<unknown[]> {
+    const res = await request(`${this.baseUrl}/v1/agents`, {
+      method: 'GET',
       headersTimeout: this.timeoutMs,
       bodyTimeout: this.timeoutMs,
-    };
-    if (init.body !== undefined) {
-      opts.body = JSON.stringify(init.body);
+    });
+    if (res.statusCode !== 200) {
+      throw new Error(`core /v1/agents ${res.statusCode}`);
     }
-    return request(`${this.baseUrl}${path}`, opts);
+    const body = (await res.body.json()) as { data?: unknown[] };
+    return body.data ?? [];
   }
 }
