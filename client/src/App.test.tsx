@@ -49,7 +49,7 @@ describe('App 状态机', () => {
     // 注入默认 fetch mock：成功 + version 在范围内
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => mockOk('0.0.2')),
+      vi.fn(async () => mockOk('0.0.3')),
     );
     // 注入 import.meta.env
     vi.stubEnv('VITE_GATEWAY_URL', GATEWAY_URL);

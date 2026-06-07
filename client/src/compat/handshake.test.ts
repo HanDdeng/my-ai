@@ -25,11 +25,11 @@ describe('handshake', () => {
   it('fetch 成功且 version 在范围内 → HEALTHY', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => mockOk('0.0.2')),
+      vi.fn(async () => mockOk('0.0.3')),
     );
     const result = await handshake(GATEWAY_URL, COMPAT, null);
     expect(result.status).toBe<HandshakeStatus>('HEALTHY');
-    expect(result.version).toBe('0.0.2');
+    expect(result.version).toBe('0.0.3');
   });
 
   it('fetch 成功但 version 不在范围内 → MISMATCH', async () => {
@@ -102,7 +102,7 @@ describe('handshake', () => {
   });
 
   it('有 clientKey 时 fetch 带 X-Client-Key 头', async () => {
-    const fetchSpy = vi.fn<typeof fetch>(async () => mockOk('0.0.2'));
+    const fetchSpy = vi.fn<typeof fetch>(async () => mockOk('0.0.3'));
     vi.stubGlobal('fetch', fetchSpy);
     await handshake(GATEWAY_URL, COMPAT, 'my-client-key-abc');
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined;
