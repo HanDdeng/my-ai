@@ -1,38 +1,105 @@
-// 客户端根组件：状态机 + heartbeat + 配对面板 + Mismatch banner。
-// 状态机：PAIRING → HEALTHY / MISMATCH / PAIR_FAILED。
-// 5 min heartbeat 重检；banner 关闭 session 内 sticky。
+// 客户端根组件（v3）：状态机 + 配对 banner/dialog + 业务 401 被动感知。
+// 状态机：PAIRING → NEED_PAIR / PAIR_PENDING / PAIRED / NEED_REPAIR / PAIR_FAILED。
+// - PAIRING：启动 / 重检握手中
+// - NEED_PAIR：首次启动且 secure store 无 config
+// - PAIR_PENDING：PairDialog 提交后等待 CLI 解析（由 dialog 自身渲染）
+// - PAIRED：握手成功（HEALTHY 或 MISMATCH，版本超范由 MismatchBanner 提示）
+// - NEED_REPAIR：握手失败 / 业务 401（clientKey 失效）
+// - PAIR_FAILED：网关不可达 / 致命错误（v3 阶段与 NEED_REPAIR 共用 banner 文案）
 import { useEffect, useState } from 'react';
 import { handshake, type HandshakeStatus } from './compat/handshake.js';
 import { COMPAT } from './compat.generated.js';
 import { Settings } from './components/Settings.js';
 import { MismatchBanner } from './components/MismatchBanner.js';
+import { PairBanner } from './components/PairBanner.js';
+import { PairDialog } from './components/PairDialog.js';
+import { loadSecureConfig, clearSecureConfig, type SecureConfig } from './lib/secure-store.js';
 
 const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL ?? 'http://127.0.0.1:8787';
-// 测试时可通过 import.meta.env 覆盖；缺省 5 min
+// 测试时可通过 import.meta.env 覆盖；缺省 5 min。
 const HEARTBEAT_MS = Number(import.meta.env.VITE_HEARTBEAT_INTERVAL_MS ?? 5 * 60 * 1000);
 
-function App() {
-  const [status, setStatus] = useState<HandshakeStatus>('PAIRING');
-  const [version, setVersion] = useState<string | null>(null);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
+// App 状态机扩展：NEED_PAIR / PAIR_PENDING / PAIRED / NEED_REPAIR / PAIR_FAILED / PAIRING。
+type AppStatus =
+  | 'NEED_PAIR'
+  | 'PAIR_PENDING'
+  | 'PAIRED'
+  | 'NEED_REPAIR'
+  | 'PAIR_FAILED'
+  | 'PAIRING';
 
-  // 启动 + heartbeat
+// 把 AppStatus 映射回 HandshakeStatus，复用 v2 Settings 组件的文案。
+// PAIRED 状态下根据 mismatch 决定是 HEALTHY 还是 MISMATCH。
+function toHandshakeStatus(s: AppStatus, mismatch: boolean): HandshakeStatus {
+  if (s === 'PAIRED') {
+    return mismatch ? 'MISMATCH' : 'HEALTHY';
+  }
+  if (s === 'PAIRING' || s === 'PAIR_PENDING') {
+    return 'PAIRING';
+  }
+  // NEED_PAIR / NEED_REPAIR / PAIR_FAILED 三态在 Settings 中均显示为"连接失败"。
+  return 'PAIR_FAILED';
+}
+
+function App() {
+  const [status, setStatus] = useState<AppStatus>('PAIRING');
+  const [version, setVersion] = useState<string | null>(null);
+  // 单独追踪版本是否超出兼容范围（PAIRED 但 MismatchBanner 是否要亮）。
+  const [isMismatch, setIsMismatch] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [secureConfig, setSecureConfig] = useState<SecureConfig | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
+  // 首次配对（无 secureConfig）时为 PairDialog 提供稳定的临时 clientKey。
+  // 用 useState 初始化函数确保只生成一次，不随 re-render 抖动。
+  const [draftKey, setDraftKey] = useState<string>(() => crypto.randomUUID());
+
+  // 启动时读 secure config；无则进入 NEED_PAIR。
   useEffect(() => {
     let cancelled = false;
+    void loadSecureConfig()
+      .then(cfg => {
+        if (cancelled) {
+          return;
+        }
+        if (cfg) {
+          setSecureConfig(cfg);
+        } else {
+          setStatus('NEED_PAIR');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStatus('NEED_PAIR');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 有 secureConfig 后启动握手 + 5 min heartbeat。
+  useEffect(() => {
+    if (!secureConfig) {
+      return;
+    }
+    let cancelled = false;
     const run = async () => {
-      // heartbeat 失败时**不**把 HEALTHY 变 PAIR_FAILED（避免抖动）
-      const prev = status;
-      // clientKey 在 v3 阶段先传 null（Task 5.6 接入 tauri-plugin-stronghold 后从 store 读）
-      const next = await handshake(GATEWAY_URL, COMPAT, null);
+      const next = await handshake(secureConfig.gatewayUrl, COMPAT, secureConfig.clientKey);
       if (cancelled) {
         return;
       }
-      if (next.status === 'PAIR_FAILED' && (prev === 'HEALTHY' || prev === 'MISMATCH')) {
-        return; // 静默保留
-      }
-      setStatus(next.status);
-      if (next.version) {
+      if (next.status === 'HEALTHY') {
+        setStatus('PAIRED');
+        setIsMismatch(false);
         setVersion(next.version);
+      } else if (next.status === 'MISMATCH') {
+        // version 不在范围但配对 OK，由 MismatchBanner 提示。
+        setStatus('PAIRED');
+        setIsMismatch(true);
+        setVersion(next.version);
+      } else if (next.status === 'PAIR_FAILED') {
+        // 握手失败：可能是 clientKey 已失效或网络抖动，统一进入 NEED_REPAIR 让用户重试。
+        setStatus('NEED_REPAIR');
       }
     };
     void run();
@@ -41,33 +108,80 @@ function App() {
       cancelled = true;
       clearInterval(id);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secureConfig]);
+
+  // 业务 401 被动感知：监听全局 my-ai:unauthorized 事件（由 apiFetch 调用方在 401 时派发）。
+  // v3 阶段先用 CustomEvent 解耦；后续可换成 React context / store。
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setStatus('NEED_REPAIR');
+      setShowDialog(true);
+    };
+    window.addEventListener('my-ai:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('my-ai:unauthorized', onUnauthorized);
   }, []);
 
-  const handleTest = async () => {
-    setStatus('PAIRING');
-    // clientKey 同上，v3 阶段先传 null
-    const next = await handshake(GATEWAY_URL, COMPAT, null);
-    setStatus(next.status);
-    if (next.version) {
-      setVersion(next.version);
-    }
-    // 不重置 bannerDismissed：用户已"知晓 mismatch"的意图不应被 retry 重置
+  const handlePaired = (info: { clientKey: string; name: string | null }) => {
+    // 配对成功：保留 dialog 已用的 gatewayUrl/pairKey，更新 clientKey 与名字；
+    // setSecureConfig 触发上面的 heartbeat useEffect 重启。
+    setSecureConfig(prev => ({
+      clientKey: info.clientKey,
+      gatewayUrl: prev?.gatewayUrl ?? GATEWAY_URL,
+      pairKey: prev?.pairKey ?? null,
+      clientName: info.name,
+    }));
+    setStatus('PAIRED');
+    setIsMismatch(false);
+    setShowDialog(false);
+    // 下一次开 dialog 重新生成 draftKey（避免复用已配对的临时 key）。
+    setDraftKey(crypto.randomUUID());
   };
+
+  const handleClear = async () => {
+    await clearSecureConfig();
+    setSecureConfig(null);
+    setStatus('NEED_PAIR');
+    setVersion(null);
+    setIsMismatch(false);
+    setBannerDismissed(false);
+  };
+
+  const settingsStatus = toHandshakeStatus(status, isMismatch);
 
   return (
     <main className="app">
       <h1>my-ai client</h1>
+      {(status === 'NEED_PAIR' || status === 'NEED_REPAIR') && (
+        <PairBanner
+          variant={status}
+          onGoToPair={() => setShowDialog(true)}
+          onClear={() => {
+            void handleClear();
+          }}
+        />
+      )}
+      {showDialog && (
+        <PairDialog
+          initialUrl={secureConfig?.gatewayUrl ?? GATEWAY_URL}
+          initialPairKey={secureConfig?.pairKey ?? null}
+          initialName={secureConfig?.clientName ?? null}
+          clientKey={secureConfig?.clientKey ?? draftKey}
+          onPaired={handlePaired}
+          onClose={() => setShowDialog(false)}
+        />
+      )}
       <Settings
-        url={GATEWAY_URL}
+        url={secureConfig?.gatewayUrl ?? GATEWAY_URL}
         onUrlChange={() => {
-          /* URL 暂不持久化，v3+ 接入 tauri-plugin-store */
+          /* v3 阶段不在 Settings 编辑 URL；由 PairDialog 维护 */
         }}
-        onTest={handleTest}
-        status={status}
+        onTest={() => {
+          /* 测试按钮保留，但 v3 主要由 PairDialog 表单完成 */
+        }}
+        status={settingsStatus}
         version={version}
       />
-      {status === 'MISMATCH' && !bannerDismissed && (
+      {status === 'PAIRED' && isMismatch && !bannerDismissed && version && (
         <MismatchBanner
           gatewayVersion={version}
           requiredRange={COMPAT.upstream.gateway}
