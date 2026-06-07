@@ -82,6 +82,42 @@ matches_sub() {
   fi
 }
 
+# 判定 commit 的所有文件变更是否都已在 base（LAST_TAG）里——是的话视为"重复"，
+# 应跳过。两种典型场景：
+#   1) DRY-RUN 用 origin/main 作 base：原始 commit 被 squash 合入 main 后，log 里
+#      还残留这条 commit 但文件内容已重复。e1add23 (MismatchBanner) 就是这种情况。
+#   2) production 用 last release tag 作 base：commit 的所有变更已在 last release
+#      里，应被 skip（避免重复展示已 release 的内容）。
+# 检查方式：对比每个文件的 blob SHA（不看 commit graph，看 tree 内容）。
+# 跳过 test 文件和 lockfile——这两类的 diff 几乎都是机械替换（version 字符串、
+# dependency 树），不代表真实 feature 变更；只看 *.ts/*.tsx 等"实质"文件即可。
+is_already_in_base() {
+  local commit="$1"
+  local base_root
+  base_root=$(git rev-parse "$LAST_TAG" 2>/dev/null) || return 1
+  local files
+  files=$(git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null)
+  if [ -z "$files" ]; then
+    return 0  # 没改任何文件（merge commit 等），视为已在 base
+  fi
+  while IFS= read -r f; do
+    # 跳过 test / spec / lockfile——这些是机械 diff 噪声
+    case "$f" in
+      *.test.*|*.spec.*) continue ;;
+      __tests__/*|*/__tests__/*) continue ;;
+      pnpm-lock.yaml|package-lock.json|yarn.lock) continue ;;
+    esac
+    local base_blob commit_blob
+    base_blob=$(git ls-tree "$base_root" "$f" 2>/dev/null | awk '{print $3}')
+    commit_blob=$(git ls-tree "$commit" "$f" 2>/dev/null | awk '{print $3}')
+    # base 没有该文件 → 新增文件 → 算新变更
+    [ -z "$base_blob" ] && return 1
+    # base 里有但 blob 不同 → 文件内容被改 → 算新变更
+    [ "$base_blob" != "$commit_blob" ] && return 1
+  done <<< "$files"
+  return 0  # 全部"实质"文件在 base 里 blob 一致 → 视为已在 base
+}
+
 echo "### 功能变更"
 for sub in client gateway core 工程化; do
   echo "- **$sub**:"
@@ -94,7 +130,7 @@ for sub in client gateway core 工程化; do
     type="${subject%%:*}"
     type="${type%%(*}"
     rest="${subject#*: }"
-    if [ "$type" = "feat" ] && matches_sub "$hash" "$sub"; then
+    if [ "$type" = "feat" ] && ! is_already_in_base "$hash" && matches_sub "$hash" "$sub"; then
       echo "  - feat: $rest"
     fi
   done)
@@ -114,7 +150,7 @@ for sub in client gateway core 工程化; do
     type="${subject%%:*}"
     type="${type%%(*}"
     rest="${subject#*: }"
-    if [ "$type" = "fix" ] && matches_sub "$hash" "$sub"; then
+    if [ "$type" = "fix" ] && ! is_already_in_base "$hash" && matches_sub "$hash" "$sub"; then
       echo "  - fix: $rest"
     fi
   done)
