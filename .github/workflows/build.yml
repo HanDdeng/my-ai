@@ -1,14 +1,16 @@
 name: build
 
 on:
-  # CI 触发规则：仅当 PR 目标分支是 main。
-  # 含 opened / synchronize / reopened 三种 PR 活动；push 事件不监听，
-  # 避免 dev-* 频繁推送浪费 CI 分钟。
+  # CI 触发规则：
+  #   1) PR opened/synchronize/reopened（目标分支 main） → 跑 quality + 三平台 build
+  #   2) push 到 main（PR 合入后触发） → 跑 quality + 三平台 build
+  #      （自动出 release 由独立的 release.yml 通过 workflow_run 监听本 workflow 完成事件后触发）
+  #   3) workflow_dispatch → 手动重跑（用于紧急排查）
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
-  # workflow_dispatch 仅供"已合入 main 之后再次校验"或紧急排查用，
-  # 不属于正常开发循环的一部分。
+  push:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -24,8 +26,40 @@ permissions:
   pull-requests: read
 
 jobs:
+  # detect-changes：用 dorny/paths-filter 看本次事件是否动过 client/** 或
+  # versions/compat-matrix.json。两者都没动 → 跳过 build-* / release，
+  # 节省 CI 分钟。quality 是必过闸门，与本 job 并行（不读取本输出），
+  # 任何 PR 都跑，docs/gateway/core 等非 client 变更不会再绕开验证。
+  detect-changes:
+    name: 检测客户端变更
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      client: ${{ steps.filter.outputs.client }}
+    steps:
+      # paths-filter 对 push / workflow_dispatch 事件要做 git diff，
+      # 需要至少 HEAD~1 的历史；最简单是 fetch-depth: 0 全量。
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # PR 用 PR base.sha；push / workflow_dispatch fallback 到 HEAD~1。
+          base: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+          filters: |
+            client:
+              - 'client/**'
+              - 'versions/compat-matrix.json'
+
   # 质量闸门：lint / typecheck / test + dedupe + secret scan 五关全过才放行后续平台构建。
   # 跑在 ubuntu-latest 上，速度最快且无平台差异。
+  # 与 detect-changes 并行（不 needs、不读其 outputs）：quality 是必过闸门，
+  # 任何 PR 都要跑，确保非 client 变更（docs / CI / gateway / core）不会绕过验证。
+  # build-* / release 仍走 detect-changes 的 client 输出决定要不要跑。
   quality:
     name: Lint / typecheck / test
     runs-on: ubuntu-latest
@@ -79,10 +113,21 @@ jobs:
     name: macOS (universal)
     runs-on: macos-latest
     timeout-minutes: 60
-    needs: quality
+    needs: [detect-changes, quality]
+    if: needs.detect-changes.outputs.client == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      # 从 versions/compat-matrix.json 读 client 版本，用于产物名拼装。
+      # runner 自带 node，无需 setup-node；shell: bash 保跨平台一致。
+      - name: Read client version
+        id: version
+        shell: bash
+        run: |
+          v=$(node -p "require('./versions/compat-matrix.json').components.client.version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "client 版本：$v"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -123,17 +168,19 @@ jobs:
         working-directory: client
         run: pnpm exec tauri build --target universal-apple-darwin --bundles app,dmg
 
+      # 产物名含版本号：my-ai-client-X.Y.Z-macos-universal（.app）
       - name: Upload .app
         uses: actions/upload-artifact@v5
         with:
-          name: my-ai-macos-app
+          name: my-ai-client-${{ steps.version.outputs.version }}-macos-universal
           path: client/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
           if-no-files-found: error
 
+      # 产物名含版本号：my-ai-client-X.Y.Z-macos-universal-dmg（.dmg）
       - name: Upload .dmg
         uses: actions/upload-artifact@v5
         with:
-          name: my-ai-macos-dmg
+          name: my-ai-client-${{ steps.version.outputs.version }}-macos-universal-dmg
           path: client/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
@@ -141,10 +188,19 @@ jobs:
     name: Linux (x86_64)
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: quality
+    needs: [detect-changes, quality]
+    if: needs.detect-changes.outputs.client == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Read client version
+        id: version
+        shell: bash
+        run: |
+          v=$(node -p "require('./versions/compat-matrix.json').components.client.version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "client 版本：$v"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -197,17 +253,19 @@ jobs:
         working-directory: client
         run: pnpm exec tauri build --target x86_64-unknown-linux-gnu --bundles deb,appimage
 
+      # 产物名含版本号：my-ai-client-X.Y.Z-linux-x64-deb
       - name: Upload .deb
         uses: actions/upload-artifact@v5
         with:
-          name: my-ai-linux-deb
+          name: my-ai-client-${{ steps.version.outputs.version }}-linux-x64-deb
           path: client/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
           if-no-files-found: error
 
+      # 产物名含版本号：my-ai-client-X.Y.Z-linux-x64-appimage
       - name: Upload .AppImage
         uses: actions/upload-artifact@v5
         with:
-          name: my-ai-linux-appimage
+          name: my-ai-client-${{ steps.version.outputs.version }}-linux-x64-appimage
           path: client/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
           if-no-files-found: error
 
@@ -215,10 +273,20 @@ jobs:
     name: Windows (x86_64)
     runs-on: windows-latest
     timeout-minutes: 60
-    needs: quality
+    needs: [detect-changes, quality]
+    if: needs.detect-changes.outputs.client == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      # Windows runner 默认 shell 是 pwsh，强制 bash 才能跟 macOS/Linux 写法一致。
+      - name: Read client version
+        id: version
+        shell: bash
+        run: |
+          v=$(node -p "require('./versions/compat-matrix.json').components.client.version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "client 版本：$v"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -259,16 +327,18 @@ jobs:
         working-directory: client
         run: pnpm exec tauri build --target x86_64-pc-windows-msvc --bundles msi,nsis
 
+      # 产物名含版本号：my-ai-client-X.Y.Z-windows-x64-msi
       - name: Upload .msi
         uses: actions/upload-artifact@v5
         with:
-          name: my-ai-windows-msi
+          name: my-ai-client-${{ steps.version.outputs.version }}-windows-x64-msi
           path: client/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
           if-no-files-found: error
 
+      # 产物名含版本号：my-ai-client-X.Y.Z-windows-x64-nsis（.exe）
       - name: Upload NSIS .exe
         uses: actions/upload-artifact@v5
         with:
-          name: my-ai-windows-nsis
+          name: my-ai-client-${{ steps.version.outputs.version }}-windows-x64-nsis
           path: client/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
           if-no-files-found: error

@@ -15,5 +15,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 读 PR 标签
+        id: labels
+        run: |
+          labels='${{ toJson(github.event.pull_request.labels) }}'
+          if echo "$labels" | grep -qE '"name":\s*"(skip-version-bump-check|no-bump-required)"'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 跳过（label 命中）
+        if: steps.labels.outputs.skip == 'true'
+        run: |
+          echo "✓ 本 PR 带 skip-version-bump-check 标签，绕过 version-bump check"
+          echo "  适用场景：首次 release、版本号另行处理、跨子项目多 commit 合并"
+          echo "  PR 作者需在 PR 描述里说明为何跳过"
+
       - name: Run check
+        if: steps.labels.outputs.skip != 'true'
         run: bash .github/scripts/version-bump-check.sh origin/main HEAD

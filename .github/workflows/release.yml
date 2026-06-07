@@ -1,68 +1,175 @@
-name: GitHub Release
+name: release
+
+# ⚠️ 当前禁用（2026-06-07）⚠️
+#
+# 状态：workflow 文件保留但 release job 不会跑（if: false）——trigger 仍会触发，
+#       Actions 标签能看到 skipped 状态，但无任何副作用。
+#
+# 历史：之前是 DRY-RUN 模式（PR 合入后触发，模拟 gh release create / upload），
+#       现在进一步禁用，连 DRY-RUN 都不跑。脚本 render-release-notes.sh 的改进
+#       仍然独立保留（commit 4f5a27b / cb8d17a / de3fac4）—— 重新启用时
+#       这些改进会自动生效。
+#
+# 恢复启用：把 release job 的 if: false 改回 if: github.event.pull_request.merged == true
+#           并按下面 "恢复原行为" 6 步去掉 DRY-RUN 标记。
+#
+# 恢复原行为（去掉 DRY-RUN 标记）：
+#   1) on: 改回 workflow_run + branches:[main] + types:[completed]
+#   2) job if: 改回 github.event.workflow_run.conclusion == 'success'
+#   3) checkout ref: 改回 ${{ github.event.workflow_run.head_sha }}
+#   4) 取消 "下载所有平台产物" 的 if: false
+#   5) 取消 "检查是否有产物" 里 has_artifacts 的硬编码
+#   6) 把 "[DRY-RUN]" 两个 step 里的 echo 改回 gh release create / upload
 
 on:
-  push:
+  # 临时：PR 合并到 main 后触发（type=closed + merged=true）。
+  # 注意：closed 也会包含"被 close 但没 merge"的 PR，所以 job if 还要再过一道 merged 闸门。
+  pull_request:
+    types: [closed]
     branches: [main]
-  workflow_dispatch:
 
 permissions:
+  # gh release create / upload 需要写仓库权限。DRY-RUN 模式下也保留以保持权限声明一致。
   contents: write
+  # 跨 workflow 拉产物必须 actions: read。DRY-RUN 模式下不实际下载，但保留声明便于恢复时无需补加。
+  actions: read
 
 jobs:
   release:
-    name: 自动出 release（条件触发）
+    # ⚠️ 当前禁用：if: false 让 job 永远不跑。trigger 仍会触发（Actions 标签可见
+    #    skipped 记录），但无任何副作用。要重新启用就把 if 改回 merged == true。
+    name: '[DISABLED] 自动出 release（当前禁用）'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: false
     steps:
-      - uses: actions/checkout@v5
+      # PR 合并后，main HEAD 已包含 squash commit。checkout 到 main branch 即可拿到合并后状态。
+      # 之前 PR opened 模式 checkout 到 pull_request.head.sha，merge 后改成 main branch。
+      - name: Checkout main HEAD（已含 squash commit）
+        uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.base.ref }}
           fetch-depth: 0
 
+      # render-release-notes.sh 用 node -e 读 matrix；此 job 不装 pnpm，故 cache 关掉。
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
           node-version: 24
           package-manager-cache: false
 
-      - name: 读上次 release tag
+      - name: 读 client 版本
+        id: version
+        run: |
+          v=$(node -p "require('./versions/compat-matrix.json').components.client.version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "client 版本：$v"
+
+      # DRY-RUN 模式：对比基准用 PR 的 base.sha（merge 前 main 状态）。
+      # 这样 release body 反映"这个 PR 改了什么"（base.sha..HEAD 的 diff），
+      # 也就是 squash commit 引入的所有内容。
+      # production release（恢复原 trigger 后）会用 last release tag 作基准。
+      - name: '读对比基准（DRY-RUN: PR base.sha）'
         id: last
         run: |
-          last=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          echo "last=$last" >> "$GITHUB_OUTPUT"
-          echo "last_tag=$last" >> "$GITHUB_ENV"
-
-      - name: 判断是否需要 release
-        id: decide
-        run: |
-          if [ -z "${{ steps.last.outputs.last }}" ]; then
-            echo "need_release=true" >> "$GITHUB_OUTPUT"
-            echo "首次 release：强制出 baseline" >&2
-            exit 0
-          fi
-          changed=$(git diff --name-only "${{ steps.last.outputs.last }}"..HEAD)
-          echo "$changed" >&2
-          if echo "$changed" | grep -q '^versions/compat-matrix\.json$'; then
-            echo "matrix 变化 → 出 release"; echo "need_release=true" >> "$GITHUB_OUTPUT"
-          elif echo "$changed" | grep -qE '^(client/package\.json|client/src-tauri/tauri\.conf\.json|gateway/package\.json|core/package\.json)$'; then
-            echo "version bump → 出 release"; echo "need_release=true" >> "$GITHUB_OUTPUT"
+          base_sha=${{ github.event.pull_request.base.sha }}
+          echo "last=$base_sha" >> "$GITHUB_OUTPUT"
+          if [ -z "$base_sha" ]; then
+            echo "⚠ 未取到 PR base.sha，diff 段可能为空"
           else
-            echo "need_release=false" >> "$GITHUB_OUTPUT"
-            echo "无 version / matrix 变化 → 不出 release"
+            echo "对比基准 PR base.sha（merge 前 main 状态）：$base_sha"
           fi
 
-      - name: 渲染 body + 创建 release
-        if: steps.decide.outputs.need_release == 'true'
+      # 临时：跳过实际下载（PR 触发时与 build.yml 并行跑，跨 workflow 拉产物不现实）。
+      # has_artifacts 在下一步硬编码为 false，模拟"client 未变更"路径。
+      - name: 下载所有平台产物
+        if: false
+        uses: actions/download-artifact@v5
+        with:
+          # 恢复时把下面三行解注：
+          # run-id: ${{ github.event.workflow_run.id }}
+          # github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts
+          pattern: my-ai-client-*
+          merge-multiple: true
+          if-no-files-found: warn
+
+      - name: 检查是否有产物
+        id: check
+        run: |
+          # 临时：DRY-RUN 模式固定为 false（实际 download step 已被 skip）
+          echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
+          echo "（DRY-RUN：download step 已 skip，has_artifacts 固定为 false）"
+          # 恢复时把上面两行换回下面的真实检测：
+          # if compgen -G "artifacts/*" > /dev/null; then
+          #   count=$(find artifacts -maxdepth 1 -type f | wc -l)
+          #   echo "has_artifacts=true" >> "$GITHUB_OUTPUT"
+          #   echo "✓ 检出 $count 个产物文件"
+          # else
+          #   echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
+          #   echo "✗ 无产物（client 未变更，build-* 全部 skip）"
+          # fi
+
+      # 渲染 body 仍真实跑——可看 commit log diff 是否正确反映 PR 内容。
+      - name: 渲染 release body
+        run: |
+          set -e
+          BODY=$(bash .github/scripts/render-release-notes.sh "${{ steps.last.outputs.last }}")
+          echo "$BODY" > /tmp/release-body.md
+          echo "---- release body 预览 ----"
+          cat /tmp/release-body.md
+          echo "---- end ----"
+
+      # 临时：DRY-RUN——只 echo"将要做什么"，不调 gh release create。
+      - name: '[DRY-RUN] 创建 GitHub Release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
           DATE=$(date +%Y%m%d)
           SHORT_SHA=$(git rev-parse --short HEAD)
           TAG="release-${DATE}-${SHORT_SHA}"
-          BODY=$(bash .github/scripts/render-release-notes.sh "${{ steps.last.outputs.last }}")
-          echo "$BODY" > /tmp/release-body.md
-          gh release create "$TAG" \
-            --title "my-ai ${TAG}" \
-            --notes-file /tmp/release-body.md \
-            --target main
-          echo "✓ release ${TAG} 已创建"
+          echo "[DRY-RUN] would run: gh release create $TAG \\"
+          echo "    --title 'my-ai $TAG' \\"
+          echo "    --notes-file /tmp/release-body.md \\"
+          echo "    --target ${{ github.event.pull_request.base.ref }}"
+          echo "---- body 前 30 行预览 ----"
+          head -30 /tmp/release-body.md || echo "(body file not found)"
+          echo "---- end ----"
+          # 恢复时把上面 5 行 echo 换回：
+          # gh release create "$TAG" \
+          #   --title "my-ai $TAG" \
+          #   --notes-file /tmp/release-body.md \
+          #   --target main
+          # echo "✓ release $TAG 已创建"
+
+      # macOS .app 打包：DRY-RUN 下 has_artifacts 固定为 false，理论上这步被 skip；
+      # 但万一未来调整了 has_artifacts 判定，这里也改成 echo。
+      - name: '[DRY-RUN] macOS .app 打包为 zip'
+        if: steps.check.outputs.has_artifacts == 'true'
+        run: |
+          echo "[DRY-RUN] would zip .app directories in artifacts/"
+          if compgen -G "artifacts/*.app" > /dev/null; then
+            for app in artifacts/*.app; do
+              echo "  would zip: $app → ${app%.app}-macos-universal-app.zip"
+            done
+          else
+            echo "（未发现 *.app，跳过 zip 步骤）"
+          fi
+
+      # 临时：DRY-RUN——只 echo"将要上传什么"，不调 gh release upload。
+      - name: '[DRY-RUN] 上传产物到 release'
+        if: steps.check.outputs.has_artifacts == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date +%Y%m%d)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG="release-${DATE}-${SHORT_SHA}"
+          echo "[DRY-RUN] would run: gh release upload $TAG <files>"
+          if compgen -G "artifacts/*" > /dev/null; then
+            echo "files that would be uploaded:"
+            find artifacts -maxdepth 1 -type f | sort | sed 's/^/  - /'
+          else
+            echo "（无产物可挂——DRY-RUN 默认不下载）"
+          fi
+          # 恢复时换回真实 mapfile + gh release upload 逻辑
