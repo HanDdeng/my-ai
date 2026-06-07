@@ -4,12 +4,17 @@
   "private": true,
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "my-ai-gateway": "./dist/cli.js"
+  },
   "scripts": {
     "prebuild": "node ../scripts/sync-compat.mjs",
     "predev": "node ../scripts/sync-compat.mjs",
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
+    "start": "node dist/cli.js start",
+    "pair": "node dist/cli.js pair",
+    "list": "node dist/cli.js list",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run --passWithNoTests"
