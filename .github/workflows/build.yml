@@ -167,6 +167,33 @@ jobs:
         working-directory: client
         run: pnpm exec tauri build --target universal-apple-darwin --bundles app,dmg
 
+      # Smoke launch：编译过 ≠ 启动不崩。macOS runner 有 window server，GUI 进程能跑。
+      - name: Smoke launch
+        run: |
+          BIN="client/src-tauri/target/universal-apple-darwin/release/my-ai-client"
+          if [ ! -f "$BIN" ]; then
+            echo "smoke: $BIN not found"
+            exit 1
+          fi
+          LOG=$(mktemp)
+          "$BIN" > "$LOG" 2>&1 &
+          PID=$!
+          sleep 8
+          if kill -0 $PID 2>/dev/null; then
+            echo "smoke: app alive after 8s, killing"
+            kill -9 $PID 2>/dev/null
+            wait $PID 2>/dev/null
+            echo "--- startup output (前 20 行) ---"
+            head -n 20 "$LOG" || true
+            rm -f "$LOG"
+          else
+            echo "smoke: FAILED — app died within 8s"
+            echo "--- output ---"
+            cat "$LOG"
+            rm -f "$LOG"
+            exit 1
+          fi
+
       # 产物名含版本号：my-ai-client-X.Y.Z-macos-universal（.app）
       - name: Upload .app
         uses: actions/upload-artifact@v5
@@ -252,6 +279,37 @@ jobs:
         working-directory: client
         run: pnpm exec tauri build --target x86_64-unknown-linux-gnu --bundles deb,appimage
 
+      # Linux runner 无显示设备；用 Xvfb 提供虚拟 framebuffer 才能跑 Tauri 窗口。
+      - name: Install Xvfb
+        run: sudo apt-get install -y xvfb
+
+      # Smoke launch：编译过 ≠ 启动不崩。
+      - name: Smoke launch
+        run: |
+          BIN="client/src-tauri/target/x86_64-unknown-linux-gnu/release/my-ai-client"
+          if [ ! -f "$BIN" ]; then
+            echo "smoke: $BIN not found"
+            exit 1
+          fi
+          LOG=$(mktemp)
+          xvfb-run -a "$BIN" > "$LOG" 2>&1 &
+          PID=$!
+          sleep 8
+          if kill -0 $PID 2>/dev/null; then
+            echo "smoke: app alive after 8s, killing"
+            kill -9 $PID 2>/dev/null
+            wait $PID 2>/dev/null
+            echo "--- startup output (前 20 行) ---"
+            head -n 20 "$LOG" || true
+            rm -f "$LOG"
+          else
+            echo "smoke: FAILED — app died within 8s"
+            echo "--- output ---"
+            cat "$LOG"
+            rm -f "$LOG"
+            exit 1
+          fi
+
       # 产物名含版本号：my-ai-client-X.Y.Z-linux-x64-deb
       - name: Upload .deb
         uses: actions/upload-artifact@v5
@@ -325,6 +383,38 @@ jobs:
       - name: Build Tauri app (MSI + NSIS)
         working-directory: client
         run: pnpm exec tauri build --target x86_64-pc-windows-msvc --bundles msi,nsis
+
+      # Smoke launch：编译过 ≠ 启动不崩。windows-latest runner 有桌面会话，GUI 进程能跑。
+      # 启动后 8s 内进程死了 = startup crash；抓 stderr/stdout 便于排查。
+      - name: Smoke launch
+        shell: pwsh
+        run: |
+          $exe = "client/src-tauri/target/x86_64-pc-windows-msvc/release/my-ai-client.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Error "smoke: $exe not found"
+            exit 1
+          }
+          $out = [System.IO.Path]::GetTempFileName()
+          $err = [System.IO.Path]::GetTempFileName()
+          $proc = Start-Process -FilePath $exe -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+          Start-Sleep -Seconds 8
+          if (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue) {
+            Write-Host "smoke: app alive after 8s, killing"
+            Stop-Process -Id $proc.Id -Force
+            Write-Host "--- startup stdout (前 20 行) ---"
+            if (Test-Path $out) { Get-Content $out -TotalCount 20 }
+            Write-Host "--- startup stderr (前 20 行) ---"
+            if (Test-Path $err) { Get-Content $err -TotalCount 20 }
+            Remove-Item $out, $err -ErrorAction SilentlyContinue
+          } else {
+            Write-Error "smoke: FAILED — app died within 8s"
+            Write-Host "--- stdout ---"
+            if (Test-Path $out) { Get-Content $out }
+            Write-Host "--- stderr ---"
+            if (Test-Path $err) { Get-Content $err }
+            Remove-Item $out, $err -ErrorAction SilentlyContinue
+            exit 1
+          }
 
       # 产物名含版本号：my-ai-client-X.Y.Z-windows-x64-msi
       - name: Upload .msi
