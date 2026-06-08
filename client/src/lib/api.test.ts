@@ -44,6 +44,33 @@ describe('apiFetch', () => {
     }
   });
 
+  // 202 + code:0 + message !== 'ok'：业务"待处理"（如 /pair 202 pair_pending），
+  // 应抛 ApiError(0, message, data) 让调用方从 e.data 取 token。
+  it('202 + code 0 + 非 ok 消息抛 ApiError（pair_pending 之类）', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: { token: 'abc123', expiresAt: 1234567890 },
+            code: 0,
+            message: 'pair_pending',
+          }),
+          { status: 202, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    );
+    try {
+      await apiFetch('http://x/pair');
+      expect.fail('expected throw');
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError);
+      expect((e as ApiError).code).toBe(0);
+      expect((e as ApiError).message).toBe('pair_pending');
+      expect((e as ApiError).data).toEqual({ token: 'abc123', expiresAt: 1234567890 });
+    }
+  });
+
   it('解析失败抛 ParseError', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('not json', { status: 200 })));
     await expect(apiFetch('http://x/foo')).rejects.toThrow(ParseError);

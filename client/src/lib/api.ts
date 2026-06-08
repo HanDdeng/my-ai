@@ -61,7 +61,12 @@ export async function apiFetch<T>(url: string, opts: ApiFetchOptions = {}): Prom
   } catch {
     throw new ParseError(`invalid JSON response from ${url}`);
   }
-  if (body.code !== 0 || !res.ok) {
+  // 三种情况抛 ApiError：
+  //   1) code !== 0      业务错误
+  //   2) !res.ok         HTTP 状态非 2xx
+  //   3) code === 0 && message !== 'ok'  业务码 0 但语义"待处理"（如 /pair 202 pair_pending）
+  //      → 抛 ApiError(0, message, data) 让调用方从 e.data 取 token / 后续信息
+  if (body.code !== 0 || !res.ok || body.message !== 'ok') {
     throw new ApiError(body.code, body.message, body.data);
   }
   return body.data as T;

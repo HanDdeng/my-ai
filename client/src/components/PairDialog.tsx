@@ -23,19 +23,24 @@ const STATUS_PENDING = '等待对方确认…';
 // 网络层错误（fetch 失败 / JSON 解析失败）→ 普通用户能看懂的提示。
 // 原 e.message（"Failed to fetch" / "invalid JSON response from ..."）全是英文，
 // 非专业用户读了不知道是啥。
+// 任何路径都不能让 undefined / null 漏到 UI。
 function friendlyNetworkError(e: unknown, prefix: string): string {
-  const msg = e instanceof Error ? e.message : String(e);
+  const raw = e instanceof Error ? e.message : String(e);
+  const msg = raw && raw !== 'undefined' && raw !== 'null' ? raw : '';
   if (msg === 'Failed to fetch') {
     return `${prefix}：网络连不上，请检查 URL / 端口 / 防火墙`;
   }
   if (msg.startsWith('invalid JSON response')) {
     return `${prefix}：目标地址返回的不是 my-ai 网关响应（确认端口/URL 没指错）`;
   }
-  return `${prefix}：${msg}`;
+  if (msg) {
+    return `${prefix}：${msg}`;
+  }
+  return `${prefix}：网络异常（未知错误）`;
 }
 
 // 网关业务码 → 普通用户能看懂的提示。code 来自 gateway/src/response.ts err()。
-// 未列出的 code 透传原文（可能是新增的）。
+// 未列出的 code 用 message 兜底（message 为空时显示错误码，绝不漏 undefined）。
 function friendlyApiError(e: unknown, prefix: string): string {
   if (!(e instanceof ApiError)) {
     return friendlyNetworkError(e, prefix);
@@ -49,7 +54,15 @@ function friendlyApiError(e: unknown, prefix: string): string {
     502: '上游服务不可用',
   };
   const zh = map[e.code];
-  return zh ? `${prefix}：${zh}` : `${prefix}：${e.message}`;
+  if (zh) {
+    return `${prefix}：${zh}`;
+  }
+  // 兜底：message 可能为 undefined（网关漏字段）或空字符串
+  const raw = (e.message ?? '').toString();
+  if (raw && raw !== 'undefined' && raw !== 'null') {
+    return `${prefix}：${raw}`;
+  }
+  return `${prefix}：错误码 ${e.code}`;
 }
 
 export function PairDialog({
