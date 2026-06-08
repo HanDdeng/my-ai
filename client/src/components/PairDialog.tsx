@@ -1,4 +1,4 @@
-// 配对弹出层：表单 + 提交 → GET /health 探活 → POST /pair → 成功/轮询。
+// 配对弹出层：表单 + 提交 → GET /health 检查连通 → POST /pair → 成功/轮询。
 // v3 阶段简化 UI：3 个 input + 1 个 submit 按钮 + 状态文字。
 // 文案 / aria-label / role 保持向后兼容（被 PairDialog.test.tsx 断言）。
 import { useState } from 'react';
@@ -16,6 +16,41 @@ type Props = {
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
+// 配对等待中的状态文案（timeout 判定 + 用户可见，单独提取出来保持一致）。
+const STATUS_PENDING = '等待对方确认…';
+
+// 网络层错误（fetch 失败 / JSON 解析失败）→ 普通用户能看懂的提示。
+// 原 e.message（"Failed to fetch" / "invalid JSON response from ..."）全是英文，
+// 非专业用户读了不知道是啥。
+function friendlyNetworkError(e: unknown, prefix: string): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (msg === 'Failed to fetch') {
+    return `${prefix}：网络连不上，请检查 URL / 端口 / 防火墙`;
+  }
+  if (msg.startsWith('invalid JSON response')) {
+    return `${prefix}：目标地址返回的不是 my-ai 网关响应（确认端口/URL 没指错）`;
+  }
+  return `${prefix}：${msg}`;
+}
+
+// 网关业务码 → 普通用户能看懂的提示。code 来自 gateway/src/response.ts err()。
+// 未列出的 code 透传原文（可能是新增的）。
+function friendlyApiError(e: unknown, prefix: string): string {
+  if (!(e instanceof ApiError)) {
+    return friendlyNetworkError(e, prefix);
+  }
+  const map: Record<number, string> = {
+    400: '请求格式有误',
+    401: '客户端标识无效或缺失',
+    403: '无权限访问',
+    404: '资源不存在（确认码可能已过期）',
+    500: '网关内部错误',
+    502: '上游服务不可用',
+  };
+  const zh = map[e.code];
+  return zh ? `${prefix}：${zh}` : `${prefix}：${e.message}`;
+}
 
 export function PairDialog({
   initialUrl,
@@ -35,16 +70,16 @@ export function PairDialog({
 
   const submit = async () => {
     setError(null);
-    setStatus('探活中…');
+    setStatus('正在连接网关…');
     setStatusState('idle');
     try {
       await apiFetch(`${url}/health`, { clientKey });
     } catch (e) {
-      setError(`网关不可达: ${(e as Error).message}`);
+      setError(friendlyNetworkError(e, '连不上网关'));
       setStatus(null);
       return;
     }
-    setStatus('配对中…');
+    setStatus('正在配对…');
     try {
       const data = await apiFetch<{ clientKey: string; name: string | null }>(`${url}/pair`, {
         method: 'POST',
@@ -64,12 +99,12 @@ export function PairDialog({
         // 202 pair_pending：从 e.data 取 token，进入轮询
         const tk = (e.data as { token?: string } | null)?.token;
         if (!tk) {
-          setError('配对失败: 响应缺少 token');
+          setError('配对失败：网关响应缺少确认码');
           setStatus(null);
           return;
         }
         setToken(tk);
-        setStatus('等待 CLI 解析…');
+        setStatus(STATUS_PENDING);
         setStatusState('pending');
         let stopped = false;
         const poll = async () => {
@@ -96,8 +131,8 @@ export function PairDialog({
         setTimeout(() => {
           stopped = true;
           clearInterval(id);
-          if (status === '等待 CLI 解析…') {
-            setError('配对超时（5min），请重试');
+          if (status === STATUS_PENDING) {
+            setError('对方长时间未确认（5 分钟），请重试或联系管理员');
             setStatus(null);
             setStatusState('idle');
           }
@@ -105,7 +140,7 @@ export function PairDialog({
         void poll();
         return;
       }
-      setError(`配对失败: ${(e as Error).message}`);
+      setError(friendlyApiError(e, '配对失败'));
       setStatus(null);
       setStatusState('idle');
     }
@@ -185,8 +220,8 @@ export function PairDialog({
           {token && (
             <div className="field">
               <span className="field-label">
-                <span>Pair Token</span>
-                <span>RUN CLI ↓</span>
+                <span>配对确认码</span>
+                <span>在网关所在主机终端运行 ↓</span>
               </span>
               <code className="token-block">{token}</code>
             </div>
