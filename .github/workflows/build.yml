@@ -83,6 +83,14 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
+      # better-sqlite3 是 native 模块，pnpm 缓存的预编译二进制可能与 runner 当前
+      # Node 版本不匹配（lockfile 锁的是开发机 Node，重新 clone 后 NODE_MODULE_VERSION
+      # 错位），装完依赖后必须在 gateway 子目录里 rebuild 一次，否则 db.test.ts /
+      # pnpm start 在 CI 上会抛 NODE_MODULE_VERSION 错。
+      - name: Rebuild gateway native deps
+        working-directory: gateway
+        run: pnpm rebuild
+
       # 检查 monorepo lockfile 有没有可合并的重复依赖；非零即视为有可优化空间。
       - name: Dedupe check
         run: pnpm dedupe --check
@@ -139,6 +147,14 @@ jobs:
 
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
+
+      # better-sqlite3 是 native 模块，pnpm 缓存的预编译二进制可能与 runner 当前
+      # Node 版本不匹配（lockfile 锁的是开发机 Node，重新 clone 后 NODE_MODULE_VERSION
+      # 错位），装完依赖后必须在 gateway 子目录里 rebuild 一次，否则 db.test.ts /
+      # pnpm start 在 CI 上会抛 NODE_MODULE_VERSION 错。
+      - name: Rebuild gateway native deps
+        working-directory: gateway
+        run: pnpm rebuild
 
       # client 端的 compat.generated.ts 是 sync-compat.mjs 现场生成的，
       # gitignore 仓库内不提交。每个 platform runner 都是独立 checkout，
@@ -225,6 +241,14 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
+      # better-sqlite3 是 native 模块，pnpm 缓存的预编译二进制可能与 runner 当前
+      # Node 版本不匹配（lockfile 锁的是开发机 Node，重新 clone 后 NODE_MODULE_VERSION
+      # 错位），装完依赖后必须在 gateway 子目录里 rebuild 一次，否则 db.test.ts /
+      # pnpm start 在 CI 上会抛 NODE_MODULE_VERSION 错。
+      - name: Rebuild gateway native deps
+        working-directory: gateway
+        run: pnpm rebuild
+
       # client 端的 compat.generated.ts 是 sync-compat.mjs 现场生成的，
       # gitignore 仓库内不提交。每个 platform runner 都是独立 checkout，
       # build frontend 前必须先跑 sync:compat，否则 tsc 会报 TS2307。
@@ -298,6 +322,14 @@ jobs:
 
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
+
+      # better-sqlite3 是 native 模块，pnpm 缓存的预编译二进制可能与 runner 当前
+      # Node 版本不匹配（lockfile 锁的是开发机 Node，重新 clone 后 NODE_MODULE_VERSION
+      # 错位），装完依赖后必须在 gateway 子目录里 rebuild 一次，否则 db.test.ts /
+      # pnpm start 在 CI 上会抛 NODE_MODULE_VERSION 错。
+      - name: Rebuild gateway native deps
+        working-directory: gateway
+        run: pnpm rebuild
 
       # client 端的 compat.generated.ts 是 sync-compat.mjs 现场生成的，
       # gitignore 仓库内不提交。每个 platform runner 都是独立 checkout，
