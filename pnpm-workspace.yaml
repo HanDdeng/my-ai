@@ -39,3 +39,7 @@ catalog:
   better-sqlite3: ^11.5.0
   # better-sqlite3 的 TypeScript 类型
   '@types/better-sqlite3': ^7.6.11
+
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
