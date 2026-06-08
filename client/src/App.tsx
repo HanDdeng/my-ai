@@ -13,6 +13,7 @@ import { Settings } from './components/Settings.js';
 import { MismatchBanner } from './components/MismatchBanner.js';
 import { PairBanner } from './components/PairBanner.js';
 import { PairDialog } from './components/PairDialog.js';
+import { ThemeToggle } from './components/ThemeToggle.js';
 import { loadSecureConfig, clearSecureConfig, type SecureConfig } from './lib/secure-store.js';
 
 const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL ?? 'http://127.0.0.1:8787';
@@ -150,7 +151,21 @@ function App() {
 
   return (
     <main className="app">
-      <h1>my-ai client</h1>
+      <header className="app-meta">
+        <span className="brand">my-ai</span>
+        <ThemeToggle />
+      </header>
+
+      <h1 className="app-title">
+        GATEWAY <em>PAIR</em>
+      </h1>
+      <p className="app-sub">
+        <span className="num">v3</span>
+        <span>REMOTE PAIRING &amp; AUTH</span>
+        <span>·</span>
+        <span>CLIENT 0.0.3</span>
+      </p>
+
       {(status === 'NEED_PAIR' || status === 'NEED_REPAIR') && (
         <PairBanner
           variant={status}
@@ -188,6 +203,11 @@ function App() {
           onDismiss={() => setBannerDismissed(true)}
         />
       )}
+
+      <footer className="app-foot">
+        <span>© my-ai · local control</span>
+        <span className="ascii">━━ 2026/06/08</span>
+      </footer>
     </main>
   );
 }
