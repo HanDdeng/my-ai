@@ -10,6 +10,7 @@ import { openDatabase } from './db.js';
 import { AuthStore } from './auth/store.js';
 import { parseCompat } from './compat/load.js';
 import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
 const COMPAT_PATH = fileURLToPath(new URL('../.compat.generated.json', import.meta.url));
 
@@ -119,7 +120,21 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch(e => {
-  console.error(e);
-  process.exit(1);
-});
+// 仅当 cli.ts 作为入口运行（pnpm start / my-ai-gateway bin / node dist/cli.js）时才执行 main()；
+// 被 src/index.ts shim 导入时不触发，避免 index.ts 自身调 cmdStart() + cli.ts 顶层 main() 默认 dispatch 到 start 双 listen → EADDRINUSE。
+// 模式与 scripts/sync-compat.mjs:66 一致。
+const isMain = (() => {
+  try {
+    const modulePath = fileURLToPath(import.meta.url);
+    const argvPath = resolve(process.argv[1] ?? '');
+    return modulePath === argvPath;
+  } catch {
+    return false;
+  }
+})();
+if (isMain) {
+  main().catch(e => {
+    console.error(e);
+    process.exit(1);
+  });
+}
