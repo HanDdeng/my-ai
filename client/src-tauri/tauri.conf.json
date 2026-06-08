@@ -25,9 +25,7 @@
       "csp": null
     }
   },
-  "plugins": {
-    "stronghold": {}
-  },
+  "plugins": {},
   "bundle": {
     "active": true,
     "targets": "all",
