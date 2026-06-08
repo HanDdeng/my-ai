@@ -814,6 +814,57 @@ body {
   user-select: all;
 }
 
+/* 配对确认码下方：完整命令行 + 复制按钮。row 内 code 撑开，按钮靠右。 */
+.cmd-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+.cmd-line {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  background: var(--bg-sunk);
+  border: var(--bw) solid var(--hairline);
+  padding: var(--s-3) var(--s-4);
+  word-break: break-all;
+  color: var(--fg);
+  user-select: all;
+}
+.btn-copy {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--s-3) var(--s-4);
+  background: var(--bg-elev);
+  border: var(--bw) solid var(--hairline);
+  color: var(--fg);
+  cursor: pointer;
+  min-width: 4rem;
+}
+.btn-copy:hover {
+  background: var(--signal);
+  color: var(--bg);
+  border-color: var(--signal);
+}
+
+/* dev 模式命令行提示：纯文字、淡色、不要太抢戏。 */
+.cmd-hint {
+  margin: var(--s-3) 0 0;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+.cmd-hint code {
+  font-family: var(--font-mono);
+  background: var(--bg-sunk);
+  border: var(--bw) solid var(--hairline);
+  padding: 2px 6px;
+  word-break: break-all;
+}
+
 /* ----------------------------------------------------------
    装饰：foot / ascii divider
    ---------------------------------------------------------- */

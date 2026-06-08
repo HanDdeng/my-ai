@@ -65,6 +65,18 @@ function friendlyApiError(e: unknown, prefix: string): string {
   return `${prefix}：错误码 ${e.code}`;
 }
 
+// 复制文本到剪贴板，1.5s 内反馈 'copied' 后回 'idle'。
+// 失败（旧浏览器 / 无 clipboard 权限）静默忽略，按钮回 'idle'，用户可手动选复制。
+async function copyCmd(text: string, setCopied: (s: 'idle' | 'copied') => void): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    setCopied('copied');
+    setTimeout(() => setCopied('idle'), 1500);
+  } catch {
+    // ignore：用户可手动选中文本复制
+  }
+}
+
 export function PairDialog({
   initialUrl,
   initialPairKey = null,
@@ -80,6 +92,8 @@ export function PairDialog({
   const [status, setStatus] = useState<string | null>(null);
   const [statusState, setStatusState] = useState<'idle' | 'pending'>('idle');
   const [token, setToken] = useState<string | null>(null);
+  // 复制命令按钮的反馈：默认 'idle'，点击后短暂变 'copied' 后回 'idle'。
+  const [copied, setCopied] = useState<'idle' | 'copied'>('idle');
 
   const submit = async () => {
     setError(null);
@@ -136,8 +150,27 @@ export function PairDialog({
               });
               onPaired({ clientKey, name: name || null });
             }
-          } catch {
-            // ignore, retry on next interval
+          } catch (e) {
+            // 404 token_not_found = CLI 调 /internal/pair/resolve 已 commit 并把
+            // pairing_code 从表里删了。视为配对完成，停止轮询。
+            // 5xx / 网络抖动：忽略，按下一次 interval 继续。
+            if (e instanceof ApiError && e.code === 404) {
+              stopped = true;
+              // 网关端已 commit = 用户已配对。saveSecureConfig 在 vite dev 浏览器（无
+              // Tauri runtime）里 Stronghold.load 会抛错，但绝不能让存盘失败
+              // 阻塞配对成功的状态切换。try/catch 兜住，错误打到 console 即可。
+              try {
+                await saveSecureConfig({
+                  clientKey,
+                  gatewayUrl: url,
+                  pairKey: pairKey || null,
+                  clientName: name || null,
+                });
+              } catch (saveErr) {
+                console.warn('saveSecureConfig failed (production 应不发生):', saveErr);
+              }
+              onPaired({ clientKey, name: name || null });
+            }
           }
         };
         const id = setInterval(poll, POLL_INTERVAL_MS);
@@ -237,6 +270,22 @@ export function PairDialog({
                 <span>在网关所在主机终端运行 ↓</span>
               </span>
               <code className="token-block">{token}</code>
+              {/* 完整命令：用户单看 token 不知道该输入啥。直接给到可复制的命令行。 */}
+              <div className="cmd-row">
+                <code className="cmd-line">my-ai-gateway pair --token {token}</code>
+                <button
+                  type="button"
+                  className="btn-copy"
+                  onClick={() => {
+                    void copyCmd(`my-ai-gateway pair --token ${token}`, setCopied);
+                  }}
+                >
+                  {copied === 'copied' ? '已复制' : '复制'}
+                </button>
+              </div>
+              <p className="cmd-hint">
+                源码 dev 模式：<code>pnpm --filter @my-ai/gateway run pair -- --token {token}</code>
+              </p>
             </div>
           )}
           {error && (
