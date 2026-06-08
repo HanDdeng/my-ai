@@ -181,8 +181,10 @@ jobs:
           sleep 8
           if kill -0 $PID 2>/dev/null; then
             echo "smoke: app alive after 8s, killing"
-            kill -9 $PID 2>/dev/null
-            wait $PID 2>/dev/null
+            # || true 防止 set -e 被 kill -9 后的 wait 非零 exit 触发
+            # （被 SIGKILL 杀死的进程 exit 137），否则脚本 abort、cleanup 跳过。
+            kill -9 $PID 2>/dev/null || true
+            wait $PID 2>/dev/null || true
             echo "--- startup output (前 20 行) ---"
             head -n 20 "$LOG" || true
             rm -f "$LOG"
@@ -297,8 +299,10 @@ jobs:
           sleep 8
           if kill -0 $PID 2>/dev/null; then
             echo "smoke: app alive after 8s, killing"
-            kill -9 $PID 2>/dev/null
-            wait $PID 2>/dev/null
+            # || true 防止 set -e 被 kill -9 后的 wait 非零 exit 触发
+            # （被 SIGKILL 杀死的进程 exit 137），否则脚本 abort、cleanup 跳过。
+            kill -9 $PID 2>/dev/null || true
+            wait $PID 2>/dev/null || true
             echo "--- startup output (前 20 行) ---"
             head -n 20 "$LOG" || true
             rm -f "$LOG"
