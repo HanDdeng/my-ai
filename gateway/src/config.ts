@@ -10,8 +10,9 @@ const Schema = z.object({
   CORE_URL: z.string().url().default('http://127.0.0.1:8788'),
   // 日志等级。
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-  // CORS 白名单，逗号分隔字符串。
-  CORS_ORIGINS: z.string().default('http://localhost:5173,tauri://localhost'),
+  // CORS 白名单，逗号分隔字符串。'*' 表示反射请求 origin（dev 友好）。
+  // 生产环境务必改为具体 origin 列表（多个用逗号分隔）。
+  CORS_ORIGINS: z.string().default('*'),
 
   // === v3 新增：远程配对与鉴权 ===
   // 配对是否公开：true=自由配对, false=需要配对码解析/或 pair key

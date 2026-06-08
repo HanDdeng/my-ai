@@ -37,10 +37,13 @@ export async function buildServer(cfg: Config, compat: Compat, authStore: AuthSt
   app.decorate('config', config);
 
   // CORS：拆分逗号分隔字符串，trim 后过滤空值。
+  // 列表里含 '*' 时用 origin: true（反射请求 origin），跟 credentials: true 兼容；
+  // 否则按字面白名单匹配。
   const origins = cfg.CORS_ORIGINS.split(',')
     .map(s => s.trim())
     .filter(Boolean);
-  await app.register(cors, { origin: origins, credentials: true });
+  const corsOrigin = origins.includes('*') ? true : origins;
+  await app.register(cors, { origin: corsOrigin, credentials: true });
   await app.register(websocket);
 
   // 鉴权中间件（白名单放行 + 验 X-Client-Key）
