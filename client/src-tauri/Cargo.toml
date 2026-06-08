@@ -25,6 +25,10 @@ tauri-plugin-http = { version = "2.0", features = [] }
 tauri-plugin-stronghold = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Stronghold 密码哈希：把 client 传入的 password 派生为 32 字节 key。
+# 当前 password 是 TS 侧的占位常量（见 secure-store.ts 的 STORE_PASSWORD 注释），
+# 等 Task 5.6 接入 OS keychain 后再换成正经的 KDF。
+sha2 = "0.10"
 
 [profile.release]
 # Release 体积优化：单 codegen unit + LTO + strip 符号。
