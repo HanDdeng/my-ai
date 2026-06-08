@@ -10,11 +10,12 @@ export function MismatchBanner({ gatewayVersion, requiredRange, onDismiss }: Pro
   return (
     <div role="alert" className="mismatch-banner">
       <span>
-        ⚠️ Gateway
+        <span className="tag">Mismatch</span>
+        Gateway
         {gatewayVersion ? ` v${gatewayVersion}` : ''} 超出 client 兼容范围 ({requiredRange})。
         部分功能可能不可用，建议升级 gateway。
       </span>
-      <button type="button" onClick={onDismiss}>
+      <button type="button" className="btn" onClick={onDismiss}>
         关闭
       </button>
     </div>

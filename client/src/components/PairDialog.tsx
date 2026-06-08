@@ -1,5 +1,6 @@
 // 配对弹出层：表单 + 提交 → GET /health 探活 → POST /pair → 成功/轮询。
 // v3 阶段简化 UI：3 个 input + 1 个 submit 按钮 + 状态文字。
+// 文案 / aria-label / role 保持向后兼容（被 PairDialog.test.tsx 断言）。
 import { useState } from 'react';
 import { apiFetch, ApiError } from '../lib/api.js';
 import { saveSecureConfig } from '../lib/secure-store.js';
@@ -29,10 +30,13 @@ export function PairDialog({
   const [name, setName] = useState(initialName ?? '');
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [statusState, setStatusState] = useState<'idle' | 'pending'>('idle');
+  const [token, setToken] = useState<string | null>(null);
 
   const submit = async () => {
     setError(null);
     setStatus('探活中…');
+    setStatusState('idle');
     try {
       await apiFetch(`${url}/health`, { clientKey });
     } catch (e) {
@@ -58,20 +62,22 @@ export function PairDialog({
     } catch (e) {
       if (e instanceof ApiError && e.code === 0) {
         // 202 pair_pending：从 e.data 取 token，进入轮询
-        const token = (e.data as { token?: string } | null)?.token;
-        if (!token) {
+        const tk = (e.data as { token?: string } | null)?.token;
+        if (!tk) {
           setError('配对失败: 响应缺少 token');
           setStatus(null);
           return;
         }
+        setToken(tk);
         setStatus('等待 CLI 解析…');
+        setStatusState('pending');
         let stopped = false;
         const poll = async () => {
           if (stopped) {
             return;
           }
           try {
-            const r = await apiFetch<{ status: string }>(`${url}/pair/status?token=${token}`);
+            const r = await apiFetch<{ status: string }>(`${url}/pair/status?token=${tk}`);
             if (r.status === 'PAIRED') {
               stopped = true;
               await saveSecureConfig({
@@ -93,6 +99,7 @@ export function PairDialog({
           if (status === '等待 CLI 解析…') {
             setError('配对超时（5min），请重试');
             setStatus(null);
+            setStatusState('idle');
           }
         }, POLL_TIMEOUT_MS);
         void poll();
@@ -100,51 +107,111 @@ export function PairDialog({
       }
       setError(`配对失败: ${(e as Error).message}`);
       setStatus(null);
+      setStatusState('idle');
     }
   };
 
   return (
     <div
-      role="dialog"
-      aria-label="配对网关"
-      style={{ border: '1px solid #ccc', padding: 16, background: '#fff' }}
+      className="dialog-backdrop"
+      onClick={e => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
     >
-      <h3>网关配对</h3>
-      <label>
-        Gateway URL
-        <input
-          type="text"
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          aria-label="Gateway URL"
-        />
-      </label>
-      <label>
-        Pair Key (可选)
-        <input
-          type="password"
-          value={pairKey}
-          onChange={e => setPairKey(e.target.value)}
-          aria-label="Pair Key (可选)"
-        />
-      </label>
-      <label>
-        客户端名 (可选)
-        <input
-          type="text"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          aria-label="客户端名"
-        />
-      </label>
-      <button type="button" onClick={submit}>
-        提交
-      </button>
-      <button type="button" onClick={onClose}>
-        取消
-      </button>
-      {status && <p>{status}</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <div role="dialog" aria-label="配对网关" className="dialog">
+        <header className="dialog-head">
+          <h2 className="dialog-title">
+            配对<em>·</em>网关
+          </h2>
+          <span className="dialog-sub">PAIRING / STEP 01</span>
+        </header>
+        <div className="dialog-body">
+          <div className="field">
+            <label className="field-label" htmlFor="pair-url">
+              <span>Gateway URL</span>
+              <span className="req">REQ</span>
+            </label>
+            <input
+              id="pair-url"
+              className="input"
+              type="text"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              aria-label="Gateway URL"
+              placeholder="http://127.0.0.1:8787"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="pair-key">
+              <span>Pair Key</span>
+              <span>OPT</span>
+            </label>
+            <input
+              id="pair-key"
+              className="input"
+              type="password"
+              value={pairKey}
+              onChange={e => setPairKey(e.target.value)}
+              aria-label="Pair Key (可选)"
+              placeholder="私有模式凭证"
+              autoComplete="off"
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="pair-name">
+              <span>客户端名</span>
+              <span>OPT</span>
+            </label>
+            <input
+              id="pair-name"
+              className="input"
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              aria-label="客户端名"
+              placeholder="alice-laptop"
+              autoComplete="off"
+            />
+          </div>
+          {status && (
+            <div className="dialog-status" data-state={statusState} role="status">
+              {status}
+            </div>
+          )}
+          {token && (
+            <div className="field">
+              <span className="field-label">
+                <span>Pair Token</span>
+                <span>RUN CLI ↓</span>
+              </span>
+              <code className="token-block">{token}</code>
+            </div>
+          )}
+          {error && (
+            <div className="dialog-error" role="alert">
+              {error}
+            </div>
+          )}
+        </div>
+        <footer className="dialog-foot">
+          <button type="button" className="btn btn--ghost" onClick={onClose}>
+            取消
+          </button>
+          <button
+            type="button"
+            className="btn btn--signal"
+            onClick={() => {
+              void submit();
+            }}
+          >
+            提交
+          </button>
+        </footer>
+      </div>
     </div>
   );
 }
