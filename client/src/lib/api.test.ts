@@ -61,4 +61,45 @@ describe('apiFetch', () => {
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     expect((init.headers as Record<string, string>)['x-client-key']).toBe('abc');
   });
+
+  // 规范化 URL：用户在 PairDialog 经常只填 host:port 或带末尾 /，
+  // apiFetch 要补 http:// 并去末尾 /，避免 fetch 走错机器或拼出 //xxx。
+  describe('URL 规范化', () => {
+    let fetchMock: ReturnType<typeof vi.fn>;
+    beforeEach(() => {
+      fetchMock = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: null, code: 0, message: 'ok' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+    });
+
+    it('裸 host:port 自动补 http://', async () => {
+      await apiFetch('192.168.31.97:8787/health');
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('http://192.168.31.97:8787/health');
+    });
+
+    it('已带 http:// 不重复补', async () => {
+      await apiFetch('http://x:8787/health');
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('http://x:8787/health');
+    });
+
+    it('已带 https:// 保留', async () => {
+      await apiFetch('https://x/health');
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('https://x/health');
+    });
+
+    it('URL 末尾 / 去掉（避免和 ${url}/path 拼出 //path）', async () => {
+      // PairDialog 端会拼 ${url}/health；这里直接测带末尾 / 的输入。
+      await apiFetch('http://x:8787/');
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('http://x:8787');
+    });
+
+    it('前后空白 trim', async () => {
+      await apiFetch('   http://x:8787/health   ');
+      expect(fetchMock.mock.calls[0]?.[0]).toBe('http://x:8787/health');
+    });
+  });
 });

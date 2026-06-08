@@ -29,7 +29,20 @@ export type ApiFetchOptions = {
   clientKey?: string | null;
 };
 
+// 规范化 URL：trim、自动补 http://、去末尾多余 /。
+// 用户在 PairDialog 经常只填 host:port，自动补协议避免 fetch 把无 scheme
+// URL 当成相对路径或路由到错的机器；末尾 / 跟 ${url}/xxx 拼接会变 //xxx。
+function normalizeUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
+  return withScheme.replace(/\/+$/, '');
+}
+
 export async function apiFetch<T>(url: string, opts: ApiFetchOptions = {}): Promise<T> {
+  const normalizedUrl = normalizeUrl(url);
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (opts.clientKey) {
     headers['x-client-key'] = opts.clientKey;
@@ -41,7 +54,7 @@ export async function apiFetch<T>(url: string, opts: ApiFetchOptions = {}): Prom
   if (opts.body !== undefined) {
     init.body = JSON.stringify(opts.body);
   }
-  const res = await fetch(url, init);
+  const res = await fetch(normalizedUrl, init);
   let body: ApiEnvelope<T>;
   try {
     body = (await res.json()) as ApiEnvelope<T>;
