@@ -83,13 +83,6 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
-      # pnpm 11 改了 native build 脚本放行机制：默认拒绝所有 postinstall 阶段
-      # 跑 .node 编译的脚本，需要显式 approve。pnpm-workspace.yaml#onlyBuiltDependencies
-      # 在 pnpm 11 仍生效但需要先执行一次 approve-builds 把 allowlist 落到本地 store 元数据
-      # 里。CI 用 --all 一键放行所有未决脚本，避免被交互式 prompt 卡住。
-      - name: Approve pnpm build scripts
-        run: pnpm approve-builds --all
-
       # 检查 monorepo lockfile 有没有可合并的重复依赖；非零即视为有可优化空间。
       - name: Dedupe check
         run: pnpm dedupe --check
@@ -146,13 +139,6 @@ jobs:
 
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
-
-      # pnpm 11 改了 native build 脚本放行机制：默认拒绝所有 postinstall 阶段
-      # 跑 .node 编译的脚本，需要显式 approve。pnpm-workspace.yaml#onlyBuiltDependencies
-      # 在 pnpm 11 仍生效但需要先执行一次 approve-builds 把 allowlist 落到本地 store 元数据
-      # 里。CI 用 --all 一键放行所有未决脚本，避免被交互式 prompt 卡住。
-      - name: Approve pnpm build scripts
-        run: pnpm approve-builds --all
 
       # client 端的 compat.generated.ts 是 sync-compat.mjs 现场生成的，
       # gitignore 仓库内不提交。每个 platform runner 都是独立 checkout，
@@ -239,13 +225,6 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
-      # pnpm 11 改了 native build 脚本放行机制：默认拒绝所有 postinstall 阶段
-      # 跑 .node 编译的脚本，需要显式 approve。pnpm-workspace.yaml#onlyBuiltDependencies
-      # 在 pnpm 11 仍生效但需要先执行一次 approve-builds 把 allowlist 落到本地 store 元数据
-      # 里。CI 用 --all 一键放行所有未决脚本，避免被交互式 prompt 卡住。
-      - name: Approve pnpm build scripts
-        run: pnpm approve-builds --all
-
       # client 端的 compat.generated.ts 是 sync-compat.mjs 现场生成的，
       # gitignore 仓库内不提交。每个 platform runner 都是独立 checkout，
       # build frontend 前必须先跑 sync:compat，否则 tsc 会报 TS2307。
@@ -319,13 +298,6 @@ jobs:
 
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
-
-      # pnpm 11 改了 native build 脚本放行机制：默认拒绝所有 postinstall 阶段
-      # 跑 .node 编译的脚本，需要显式 approve。pnpm-workspace.yaml#onlyBuiltDependencies
-      # 在 pnpm 11 仍生效但需要先执行一次 approve-builds 把 allowlist 落到本地 store 元数据
-      # 里。CI 用 --all 一键放行所有未决脚本，避免被交互式 prompt 卡住。
-      - name: Approve pnpm build scripts
-        run: pnpm approve-builds --all
 
       # client 端的 compat.generated.ts 是 sync-compat.mjs 现场生成的，
       # gitignore 仓库内不提交。每个 platform runner 都是独立 checkout，
