@@ -4,8 +4,9 @@ import { z } from 'zod';
 const Schema = z.object({
   // 监听端口，默认 8787（前端 VITE_GATEWAY_URL 默认值要保持一致）。
   PORT: z.coerce.number().int().positive().default(8787),
-  // 监听地址。
-  HOST: z.string().default('127.0.0.1'),
+  // 监听地址；dev 默认 0.0.0.0（任意 IP 可连，方便 LAN/Docker/SSH 隧道调试）。
+  // 生产部署如要限制到具体网卡，env 显式 override。
+  HOST: z.string().default('0.0.0.0'),
   // 上游 core 地址。
   CORE_URL: z.string().url().default('http://127.0.0.1:8788'),
   // 日志等级。
