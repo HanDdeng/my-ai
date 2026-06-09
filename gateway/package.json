@@ -15,7 +15,7 @@
     "start": "node dist/cli.js start",
     "pair": "node dist/cli.js pair",
     "list": "node dist/cli.js list",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.test.json",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run --passWithNoTests"
   },
