@@ -1,5 +1,8 @@
 // Mismatch 警告横幅。
 // 关闭由父组件的 bannerDismissed state 控制；本组件只负责渲染 + 触发 onDismiss。
+// v5: 全文案走 i18n。
+import { useTranslation } from 'react-i18next';
+
 type Props = {
   gatewayVersion: string | null;
   requiredRange: string;
@@ -7,16 +10,18 @@ type Props = {
 };
 
 export function MismatchBanner({ gatewayVersion, requiredRange, onDismiss }: Props) {
+  const { t } = useTranslation();
   return (
     <div role="alert" className="mismatch-banner">
       <span>
-        <span className="tag">Mismatch</span>
-        Gateway
-        {gatewayVersion ? ` v${gatewayVersion}` : ''} 超出 client 兼容范围 ({requiredRange})。
-        部分功能可能不可用，建议升级 gateway。
+        <span className="tag">{t('mismatch.tag')}</span>
+        {t('mismatch.message', {
+          version: gatewayVersion ? ` v${gatewayVersion}` : '',
+          range: requiredRange,
+        })}
       </span>
       <button type="button" className="btn" onClick={onDismiss}>
-        关闭
+        {t('mismatch.dismiss')}
       </button>
     </div>
   );
