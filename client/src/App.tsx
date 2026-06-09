@@ -1,12 +1,14 @@
-// 客户端根组件（v3）：状态机 + 配对 banner/dialog + 业务 401 被动感知。
+// 客户端根组件（v5）：状态机 + 配对 banner/dialog + 业务 401 被动感知 + i18n。
+// v5: header h1 / em / 副标题 / footer 走 i18n；header 加 <LanguageSwitcher />。
 // 状态机：PAIRING → NEED_PAIR / PAIR_PENDING / PAIRED / NEED_REPAIR / PAIR_FAILED。
 // - PAIRING：启动 / 重检握手中
 // - NEED_PAIR：首次启动且 secure store 无 config
 // - PAIR_PENDING：PairDialog 提交后等待 CLI 解析（由 dialog 自身渲染）
 // - PAIRED：握手成功（HEALTHY 或 MISMATCH，版本超范由 MismatchBanner 提示）
 // - NEED_REPAIR：握手失败 / 业务 401（clientKey 失效）
-// - PAIR_FAILED：网关不可达 / 致命错误（v3 阶段与 NEED_REPAIR 共用 banner 文案）
+// - PAIR_FAILED：网关不可达 / 致命错误（v5 阶段与 NEED_REPAIR 共用 banner 文案）
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { handshake, type HandshakeStatus } from './compat/handshake.js';
 import { COMPAT } from './compat.generated.js';
 import { Settings } from './components/Settings.js';
@@ -14,6 +16,7 @@ import { MismatchBanner } from './components/MismatchBanner.js';
 import { PairBanner } from './components/PairBanner.js';
 import { PairDialog } from './components/PairDialog.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
+import { LanguageSwitcher } from './i18n/switch.js';
 import { loadSecureConfig, clearSecureConfig, type SecureConfig } from './lib/secure-store.js';
 import { randomUUID } from './lib/uuid.js';
 
@@ -44,6 +47,7 @@ function toHandshakeStatus(s: AppStatus, mismatch: boolean): HandshakeStatus {
 }
 
 function App() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<AppStatus>('PAIRING');
   const [version, setVersion] = useState<string | null>(null);
   // 单独追踪版本是否超出兼容范围（PAIRED 但 MismatchBanner 是否要亮）。
@@ -178,18 +182,19 @@ function App() {
   return (
     <main className="app">
       <header className="app-meta">
-        <span className="brand">my-ai</span>
+        <span className="brand">{t('app.brand')}</span>
         <ThemeToggle />
+        <LanguageSwitcher />
       </header>
 
       <h1 className="app-title">
-        GATEWAY <em>PAIR</em>
+        {t('app.title')} <em>{t('app.titleEm')}</em>
       </h1>
       <p className="app-sub">
-        <span className="num">v3</span>
-        <span>REMOTE PAIRING &amp; AUTH</span>
-        <span>·</span>
-        <span>CLIENT 0.0.3</span>
+        <span className="num">v5</span>
+        <span>{t('app.subtitle.line1')}</span>
+        <span>{t('app.subtitle.sep')}</span>
+        <span>{t('app.subtitle.line2', { version: '0.0.4' })}</span>
       </p>
 
       {(status === 'NEED_PAIR' || status === 'NEED_REPAIR') && (
@@ -229,8 +234,8 @@ function App() {
       )}
 
       <footer className="app-foot">
-        <span>© my-ai · local control</span>
-        <span className="ascii">━━ 2026/06/08</span>
+        <span>{t('app.footer.copy')}</span>
+        <span className="ascii">{t('app.footer.date', { date: '2026/06/10' })}</span>
       </footer>
     </main>
   );
