@@ -16,7 +16,7 @@ export function MismatchBanner({ gatewayVersion, requiredRange, onDismiss }: Pro
       <span>
         <span className="tag">{t('mismatch.tag')}</span>
         {t('mismatch.message', {
-          version: gatewayVersion ? ` v${gatewayVersion}` : '',
+          version: gatewayVersion ? `v${gatewayVersion}` : '',
           range: requiredRange,
         })}
       </span>
