@@ -1,6 +1,6 @@
 // i18n init 行为测试（v5）：覆盖 localStorage / navigator / fallback 三个降级层。
-// 测试 setup 钉死 zh-CN（client/test/setup.ts 顶部 i18n.changeLanguage('zh-CN')），
-// 本文件主要验证 detectLng 行为；运行时 i18n.language 已被 setup 改写。
+// 本文件用 `?v=` 动态 import + Date.now() 缓存绕过，每次重跑 detectLng()。
+// Task 5 会在 client/test/setup.ts 顶部加 i18n.changeLanguage('zh-CN')，本文件暂不依赖。
 import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('i18n init', () => {
