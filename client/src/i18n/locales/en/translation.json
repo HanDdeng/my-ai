@@ -1,0 +1,120 @@
+{
+  "app": {
+    "brand": "my-ai",
+    "title": "GATEWAY PAIR",
+    "titleEm": "PAIR",
+    "subtitle": {
+      "line1": "REMOTE PAIRING & AUTH",
+      "sep": "·",
+      "line2": "CLIENT {{version}}"
+    },
+    "footer": {
+      "copy": "© my-ai · local control",
+      "date": "━━ {{date}}"
+    }
+  },
+  "settings": {
+    "label": "Gateway Status",
+    "statusHead": "STATUS / GATEWAY",
+    "urlAria": "Gateway URL",
+    "test": "Test",
+    "gatewayLabel": "Gateway",
+    "versionPrefix": "GATEWAY",
+    "status": {
+      "PAIRING": "Testing…",
+      "HEALTHY": "Paired",
+      "MISMATCH": "Version Mismatch",
+      "PAIR_FAILED": "Connection Failed"
+    }
+  },
+  "pair": {
+    "banner": {
+      "needPair": {
+        "kicker": "Need Pair",
+        "message": "Not paired yet. Please complete gateway pairing."
+      },
+      "needRepair": {
+        "kicker": "⚠ Repair Pairing",
+        "message": "Previous clientKey is no longer valid. Please start a new pairing request."
+      },
+      "actions": {
+        "goPair": "Go to Pair",
+        "clear": "Clear Pairing"
+      }
+    },
+    "dialog": {
+      "title": "Pair Gateway",
+      "sub": "PAIRING / STEP 01",
+      "fields": {
+        "url": {
+          "label": "Gateway URL",
+          "req": "REQ",
+          "placeholder": "http://127.0.0.1:8787"
+        },
+        "pairKey": {
+          "label": "Pair Key",
+          "opt": "OPT",
+          "placeholder": "Private mode credential",
+          "aria": "Pair Key (optional)"
+        },
+        "name": {
+          "label": "Client Name",
+          "opt": "OPT",
+          "placeholder": "alice-laptop",
+          "aria": "Client Name"
+        }
+      },
+      "token": {
+        "label": "Pairing Token",
+        "hintHead": "Run on the gateway host terminal ↓"
+      },
+      "status": {
+        "connecting": "Connecting to gateway…",
+        "pairing": "Pairing…",
+        "pending": "Waiting for confirmation…"
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "submit": "Submit",
+        "copy": "Copy",
+        "copied": "Copied"
+      },
+      "errors": {
+        "network": "Cannot reach gateway",
+        "pairFail": "Pairing failed",
+        "missingToken": "Pairing failed: gateway response is missing the confirmation token",
+        "timeout": "Confirmation timed out (5 minutes). Please retry or contact the administrator."
+      }
+    }
+  },
+  "mismatch": {
+    "tag": "Mismatch",
+    "message": "Gateway {{version}} is out of the client compat range ({{range}}). Some features may not work; consider upgrading the gateway.",
+    "dismiss": "Dismiss"
+  },
+  "errors": {
+    "network": {
+      "fetchFail": "Network unreachable. Check URL / port / firewall.",
+      "notMyAi": "The target address is not a my-ai gateway response (check the port/URL).",
+      "unknown": "Network error (unknown)"
+    },
+    "api": {
+      "400": "Bad request",
+      "401": "Client key invalid or missing",
+      "403": "Forbidden",
+      "404": "Resource not found (the token may have expired)",
+      "500": "Gateway internal error",
+      "502": "Upstream service unavailable"
+    }
+  },
+  "theme": {
+    "light": "LIGHT",
+    "dark": "DARK",
+    "ariaCurrent": "Current {{state}} theme, click to switch to {{next}}"
+  },
+  "lang": {
+    "zh": "中",
+    "en": "EN",
+    "aria": "Switch language, current {{current}}"
+  }
+}

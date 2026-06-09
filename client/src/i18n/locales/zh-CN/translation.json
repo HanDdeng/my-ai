@@ -1,0 +1,120 @@
+{
+  "app": {
+    "brand": "my-ai",
+    "title": "GATEWAY PAIR",
+    "titleEm": "PAIR",
+    "subtitle": {
+      "line1": "REMOTE PAIRING & AUTH",
+      "sep": "·",
+      "line2": "CLIENT {{version}}"
+    },
+    "footer": {
+      "copy": "© my-ai · local control",
+      "date": "━━ {{date}}"
+    }
+  },
+  "settings": {
+    "label": "Gateway 状态",
+    "statusHead": "STATUS / GATEWAY",
+    "urlAria": "Gateway URL",
+    "test": "测试",
+    "gatewayLabel": "网关",
+    "versionPrefix": "GATEWAY",
+    "status": {
+      "PAIRING": "正在测试…",
+      "HEALTHY": "配对成功",
+      "MISMATCH": "版本不匹配",
+      "PAIR_FAILED": "连接失败"
+    }
+  },
+  "pair": {
+    "banner": {
+      "needPair": {
+        "kicker": "待配对",
+        "message": "尚未配对。请先完成网关配对。"
+      },
+      "needRepair": {
+        "kicker": "⚠ 重新配对",
+        "message": "上次的 clientKey 已失效，请发起新的配对请求。"
+      },
+      "actions": {
+        "goPair": "去配对",
+        "clear": "清除配对"
+      }
+    },
+    "dialog": {
+      "title": "配对网关",
+      "sub": "PAIRING / STEP 01",
+      "fields": {
+        "url": {
+          "label": "Gateway URL",
+          "req": "REQ",
+          "placeholder": "http://127.0.0.1:8787"
+        },
+        "pairKey": {
+          "label": "Pair Key",
+          "opt": "OPT",
+          "placeholder": "私有模式凭证",
+          "aria": "Pair Key (可选)"
+        },
+        "name": {
+          "label": "客户端名",
+          "opt": "OPT",
+          "placeholder": "alice-laptop",
+          "aria": "客户端名"
+        }
+      },
+      "token": {
+        "label": "配对确认码",
+        "hintHead": "在网关所在主机终端运行 ↓"
+      },
+      "status": {
+        "connecting": "正在连接网关…",
+        "pairing": "正在配对…",
+        "pending": "等待对方确认…"
+      },
+      "actions": {
+        "cancel": "取消",
+        "submit": "提交",
+        "copy": "复制",
+        "copied": "已复制"
+      },
+      "errors": {
+        "network": "连不上网关",
+        "pairFail": "配对失败",
+        "missingToken": "配对失败：网关响应缺少确认码",
+        "timeout": "对方长时间未确认（5 分钟），请重试或联系管理员"
+      }
+    }
+  },
+  "mismatch": {
+    "tag": "Mismatch",
+    "message": "Gateway {{version}} 超出 client 兼容范围 ({{range}})。部分功能可能不可用，建议升级 gateway。",
+    "dismiss": "关闭"
+  },
+  "errors": {
+    "network": {
+      "fetchFail": "网络连不上，请检查 URL / 端口 / 防火墙",
+      "notMyAi": "目标地址返回的不是 my-ai 网关响应（确认端口/URL 没指错）",
+      "unknown": "网络异常（未知错误）"
+    },
+    "api": {
+      "400": "请求格式有误",
+      "401": "客户端标识无效或缺失",
+      "403": "无权限访问",
+      "404": "资源不存在（确认码可能已过期）",
+      "500": "网关内部错误",
+      "502": "上游服务不可用"
+    }
+  },
+  "theme": {
+    "light": "LIGHT",
+    "dark": "DARK",
+    "ariaCurrent": "当前 {{state}}色主题，点击切换到 {{next}}色"
+  },
+  "lang": {
+    "zh": "中",
+    "en": "EN",
+    "aria": "切换语言，当前 {{current}}"
+  }
+}
