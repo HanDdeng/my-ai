@@ -6,6 +6,12 @@ packages:
   - 'gateway'
   - 'core'
 
+# pnpm 10 默认忽略 native build 脚本，better-sqlite3 依赖 prebuild-install / node-gyp
+# 生成 .node 绑定。Task 0.1 加依赖时忽略了 build 脚本，运行时 new Database() 会
+# 报 "Could not locate the bindings file"。显式放行。
+onlyBuiltDependencies:
+  - better-sqlite3
+
 catalog:
   # 跨子项目类型与运行时基建
   typescript: ^5.5.4
@@ -18,6 +24,7 @@ catalog:
 
   # gateway + core 共用服务栈
   fastify: ^4.28.1
+  fastify-plugin: ^4.5.1
   '@fastify/cors': ^9.0.1
   '@fastify/websocket': ^10.0.1
   pino: ^9.5.0
@@ -27,3 +34,12 @@ catalog:
   # 用于版本范围匹配（v2 compat 机制）
   semver: ^7.6.3
   '@types/semver': ^7.5.8
+
+  # 用于网关持久化客户端配对记录（v3 鉴权机制）
+  better-sqlite3: ^11.5.0
+  # better-sqlite3 的 TypeScript 类型
+  '@types/better-sqlite3': ^7.6.11
+
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Desktop agent monorepo: client (Tauri+React), gateway, core.",
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@11.0.0",
   "engines": {
     "node": ">=20.0.0"
   },

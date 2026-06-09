@@ -80,6 +80,68 @@ LLM / 工具 / OS 自动化
 - 生成的截图、临时数据、构建产物统一在 `data/`、`tmp/` 下，禁止提交到 git。
 - 主分支（`main`）禁止直接编辑，所有改动走 `dev-YYYYMMDD` 分支并通过 MR 合入。
 
+## v3：网关远程配对与鉴权
+
+v3 在 v2 握手 / heartbeat 基础上引入客户端身份：
+
+- 客户端首次启动需"配对"（填 gateway URL + 可选 pair key + 可选 name）
+- 网关公开/私有两种模式：公开无障碍配对；私有需 CLI 解析配对码或提供 pair key
+- 配对成功 → 网关存 clientKey 的 SHA-256 hash + 元数据
+- 后续请求 header `X-Client-Key: <clientKey>` 鉴权（fastify middleware）
+- 配对信息存 SQLite（`./gateway.db`）；TTL 可配，过期自动清理
+- CLI：`my-ai-gateway { start | pair --token <token> | list }`
+
+详细见 [`versions/v3.md`](./versions/v3.md)。
+
+### 部署假设
+
+v3 假设 gateway 部署在以下任一环境：
+
+- **HTTPS**（推荐）：TLS 加密 header 传输，clientKey 不可被窃听
+- **内网 / 本机**：网络层信任，无窃听风险
+- **明文 HTTP 跨网**：**不推荐**。v3 不实现 HMAC 签名，明文 HTTP 下 key 可被重放。v4+ 评估 HMAC。
+
+### 网关环境变量
+
+`gateway/.env.example` 列了完整清单（[点此查看](./gateway/.env.example)）。v3 新增的 4 项：
+
+| 变量                      | 必填 | 默认           | 说明                                                                                |
+| ------------------------- | ---- | -------------- | ----------------------------------------------------------------------------------- |
+| `GATEWAY_PAIRING_PUBLIC`  | 否   | `false`        | 公开模式开关。`true` = 任何客户端可配对；`false` = 需要配对码或 pair key            |
+| `GATEWAY_PAIR_KEY`        | 否   | （空）         | 管理员通道 key。客户端表单提交此值时直接配对（任何模式都 bypass code 流程）         |
+| `GATEWAY_PAIRING_KEY_TTL` | 否   | （空）         | 客户端唯一键保存时效（秒）。留空或 `0` = 不启动清理；典型值 `3600`/`86400`/`604800` |
+| `GATEWAY_DB_PATH`         | 否   | `./gateway.db` | SQLite 文件路径（相对路径相对 cwd）                                                 |
+
+**配置方式**：
+
+```bash
+# 方式 1：复制模板（首次 clone 后）
+pnpm setup    # 复制 .env.example → gateway/.env
+# 编辑 gateway/.env，按需填入上述变量
+
+# 方式 2：直接 shell 注入（适合容器化 / CI）
+GATEWAY_PAIRING_PUBLIC=true \
+GATEWAY_PAIR_KEY=admin-secret \
+GATEWAY_PAIRING_KEY_TTL=86400 \
+node gateway/dist/cli.js start
+```
+
+**快速验证**：
+
+```bash
+# 公开模式快速测（任何客户端可配对）
+GATEWAY_PAIRING_PUBLIC=true node gateway/dist/cli.js start
+
+# 私有模式 + pair key（推荐家用 / 小团队）
+GATEWAY_PAIR_KEY=admin-secret node gateway/dist/cli.js start
+
+# 私有模式 + 自动过期清理（1d 失效）
+GATEWAY_PAIR_KEY=admin-secret GATEWAY_PAIRING_KEY_TTL=86400 node gateway/dist/cli.js start
+
+# 查看已配对客户端
+my-ai-gateway list
+```
+
 ## 后续计划
 
 - [ ] core 接入 LLM（OpenAI 兼容协议）
