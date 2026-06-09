@@ -6,7 +6,7 @@
 // - PAIRED：握手成功（HEALTHY 或 MISMATCH，版本超范由 MismatchBanner 提示）
 // - NEED_REPAIR：握手失败 / 业务 401（clientKey 失效）
 // - PAIR_FAILED：网关不可达 / 致命错误（v3 阶段与 NEED_REPAIR 共用 banner 文案）
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { handshake, type HandshakeStatus } from './compat/handshake.js';
 import { COMPAT } from './compat.generated.js';
 import { Settings } from './components/Settings.js';
@@ -79,6 +79,25 @@ function App() {
     };
   }, []);
 
+  // 跑一次握手并把结果落到状态机。useCallback([]) 让引用稳定，
+  // 既给 heartbeat 用，也给 Settings 的"测试"按钮用。
+  const runHandshake = useCallback(async (cfg: SecureConfig) => {
+    const next = await handshake(cfg.gatewayUrl, COMPAT, cfg.clientKey);
+    if (next.status === 'HEALTHY') {
+      setStatus('PAIRED');
+      setIsMismatch(false);
+      setVersion(next.version);
+    } else if (next.status === 'MISMATCH') {
+      // version 不在范围但配对 OK，由 MismatchBanner 提示。
+      setStatus('PAIRED');
+      setIsMismatch(true);
+      setVersion(next.version);
+    } else if (next.status === 'PAIR_FAILED') {
+      // 握手失败：可能是 clientKey 已失效或网络抖动，统一进入 NEED_REPAIR 让用户重试。
+      setStatus('NEED_REPAIR');
+    }
+  }, []);
+
   // 有 secureConfig 后启动握手 + 5 min heartbeat。
   useEffect(() => {
     if (!secureConfig) {
@@ -86,23 +105,10 @@ function App() {
     }
     let cancelled = false;
     const run = async () => {
-      const next = await handshake(secureConfig.gatewayUrl, COMPAT, secureConfig.clientKey);
       if (cancelled) {
         return;
       }
-      if (next.status === 'HEALTHY') {
-        setStatus('PAIRED');
-        setIsMismatch(false);
-        setVersion(next.version);
-      } else if (next.status === 'MISMATCH') {
-        // version 不在范围但配对 OK，由 MismatchBanner 提示。
-        setStatus('PAIRED');
-        setIsMismatch(true);
-        setVersion(next.version);
-      } else if (next.status === 'PAIR_FAILED') {
-        // 握手失败：可能是 clientKey 已失效或网络抖动，统一进入 NEED_REPAIR 让用户重试。
-        setStatus('NEED_REPAIR');
-      }
+      await runHandshake(secureConfig);
     };
     void run();
     const id = setInterval(run, HEARTBEAT_MS);
@@ -110,7 +116,7 @@ function App() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [secureConfig]);
+  }, [secureConfig, runHandshake]);
 
   // 业务 401 被动感知：监听全局 my-ai:unauthorized 事件（由 apiFetch 调用方在 401 时派发）。
   // v3 阶段先用 CustomEvent 解耦；后续可换成 React context / store。
@@ -158,6 +164,17 @@ function App() {
 
   const settingsStatus = toHandshakeStatus(status, isMismatch);
 
+  // Settings 上的"测试"按钮：已配对则重跑一次握手并先切到 PAIRING 状态
+  // 让用户立刻看到"正在测试…"反馈；未配对则打开 PairDialog 引导进入配对流程。
+  const handleTest = () => {
+    if (secureConfig) {
+      setStatus('PAIRING');
+      void runHandshake(secureConfig);
+    } else {
+      setShowDialog(true);
+    }
+  };
+
   return (
     <main className="app">
       <header className="app-meta">
@@ -199,9 +216,7 @@ function App() {
         onUrlChange={() => {
           /* v3 阶段不在 Settings 编辑 URL；由 PairDialog 维护 */
         }}
-        onTest={() => {
-          /* 测试按钮保留，但 v3 主要由 PairDialog 表单完成 */
-        }}
+        onTest={handleTest}
         status={settingsStatus}
         version={version}
       />

@@ -165,4 +165,38 @@ describe('App 状态机', () => {
     expect(await screen.findByText(/重新配对/)).toBeInTheDocument();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
+
+  it('已配对时点 Settings "测试" → 重跑握手（fetch 再次被调）', async () => {
+    const fetchMock = vi.fn(async () => mockOk('0.0.3'));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<App />);
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(await screen.findByText(/配对成功/)).toBeInTheDocument();
+    const callsBefore = fetchMock.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: '测试' }));
+    // 立刻反馈 PAIRING
+    expect(await screen.findByText(/正在测试/)).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
+    // 仍 HEALTHY
+    expect(await screen.findByText(/配对成功/)).toBeInTheDocument();
+  });
+
+  it('未配对时点 Settings "测试" → 直接弹 PairDialog（不开 Banner 那条路）', async () => {
+    mockLoad.mockResolvedValueOnce(null);
+    render(<App />);
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(await screen.findByText(/尚未配对/)).toBeInTheDocument();
+    // PairBanner 不会自动弹 dialog（需要点"去配对"），点 Settings 的"测试"应直接弹
+    fireEvent.click(screen.getByRole('button', { name: '测试' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
 });
