@@ -5,11 +5,10 @@ import { SUPPORTED } from './index.js';
 
 const NEXT: Record<string, string> = { 'zh-CN': 'en', en: 'zh-CN' };
 // i18n.language 是 'zh-CN' / 'en'，但 lang 资源 key 是 'lang.zh' / 'lang.en'（短码作 label）。
-// zh-CN → 'lang.zh'，en → 'lang.en'。未知语种兜底 'lang.zh'（与 fallbackLng 一致）。
-const LABEL_KEY: Record<string, string> = { 'zh-CN': 'lang.zh', en: 'lang.en' };
-
+// 通过 SUPPORTED 校验 + 截短码生成 'lang.{short}'。未知语种兜底 'lang.zh'（与 fallbackLng 一致）。
 function labelKeyFor(lng: string): string {
-  return LABEL_KEY[lng] ?? 'lang.zh';
+  const short = (SUPPORTED as readonly string[]).includes(lng) ? lng.split('-')[0]! : 'zh';
+  return `lang.${short}`;
 }
 
 export function LanguageSwitcher() {

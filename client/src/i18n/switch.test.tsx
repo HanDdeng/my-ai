@@ -1,6 +1,6 @@
 // <LanguageSwitcher /> 行为测试（v5）：切语种 + localStorage 写入。
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, findByText, waitFor } from '@testing-library/react';
 import i18n from './index.js';
 import { LanguageSwitcher } from './switch.js';
 
@@ -22,16 +22,17 @@ describe('<LanguageSwitcher>', () => {
   it('点按钮 → 切到 en + localStorage 写入 en', async () => {
     render(<LanguageSwitcher />);
     fireEvent.click(screen.getByRole('button'));
-    // i18n.changeLanguage 是 async，等 promise 完成
-    await i18n.changeLanguage('en');
-    expect(localStorage.getItem('my-ai:lang')).toBe('en');
+    // 点击后 i18n.changeLanguage 是 async，findByText 会等 React 重渲（包在 act 内）
+    await findByText(document.body, i18n.t('lang.en'));
+    await waitFor(() => {
+      expect(localStorage.getItem('my-ai:lang')).toBe('en');
+    });
   });
 
   it('切到 en 后渲染 "EN" 文字', async () => {
     render(<LanguageSwitcher />);
     fireEvent.click(screen.getByRole('button'));
-    await i18n.changeLanguage('en');
-    expect(screen.getByText(i18n.t('lang.en'))).toBeInTheDocument();
+    expect(await findByText(document.body, i18n.t('lang.en'))).toBeInTheDocument();
   });
 
   it('aria-label 含当前语言名', () => {
