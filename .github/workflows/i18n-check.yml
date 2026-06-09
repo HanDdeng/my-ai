@@ -1,0 +1,33 @@
+name: i18n check
+
+on:
+  # 只在 PR 阶段（opened / synchronize / reopened）跑；合入 main 后不再单独跑一次，
+  # 避免与 PR 检查重复消耗 CI 分钟数。与 version-bump-check / compat-matrix-check 保持一致。
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+jobs:
+  check:
+    name: i18n 资源完整性校验
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Run check
+        run: node scripts/check-i18n.mjs
