@@ -43,7 +43,14 @@ describe('<PairDialog>', () => {
     );
     fireEvent.change(screen.getByLabelText('Gateway URL'), { target: { value: 'http://gw' } });
     fireEvent.click(screen.getByRole('button', { name: '提交' }));
-    await waitFor(() => expect(onPaired).toHaveBeenCalledWith({ clientKey: 'k', name: 'alice' }));
+    await waitFor(() =>
+      expect(onPaired).toHaveBeenCalledWith({
+        clientKey: 'k',
+        name: 'alice',
+        gatewayUrl: 'http://gw',
+        pairKey: null,
+      }),
+    );
   });
 
   it('POST /pair 202 → 进入轮询 → PAIRED 后调 onPaired', async () => {

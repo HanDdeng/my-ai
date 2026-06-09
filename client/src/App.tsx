@@ -122,13 +122,21 @@ function App() {
     return () => window.removeEventListener('my-ai:unauthorized', onUnauthorized);
   }, []);
 
-  const handlePaired = (info: { clientKey: string; name: string | null }) => {
-    // 配对成功：保留 dialog 已用的 gatewayUrl/pairKey，更新 clientKey 与名字；
+  const handlePaired = (info: {
+    clientKey: string;
+    name: string | null;
+    gatewayUrl: string;
+    pairKey: string | null;
+  }) => {
+    // 配对成功：用 dialog 实际提交的 URL / pairKey，更新 clientKey 与名字；
     // setSecureConfig 触发上面的 heartbeat useEffect 重启。
+    // 之前用 prev?.gatewayUrl ?? GATEWAY_URL 会让用户填的 10.0.0.4 被丢成
+    // 默认的 127.0.0.1，导致 Settings 显示地址与实际不一致、且重连时握手
+    // 走错 host。修法：dialog 把 URL 透传过来，优先用它，prev 兜底。
     setSecureConfig(prev => ({
       clientKey: info.clientKey,
-      gatewayUrl: prev?.gatewayUrl ?? GATEWAY_URL,
-      pairKey: prev?.pairKey ?? null,
+      gatewayUrl: info.gatewayUrl || prev?.gatewayUrl || GATEWAY_URL,
+      pairKey: info.pairKey ?? prev?.pairKey ?? null,
       clientName: info.name,
     }));
     setStatus('PAIRED');

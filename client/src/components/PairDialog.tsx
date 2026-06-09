@@ -10,7 +10,12 @@ type Props = {
   initialPairKey?: string | null;
   initialName?: string | null;
   clientKey: string;
-  onPaired: (info: { clientKey: string; name: string | null }) => void;
+  onPaired: (info: {
+    clientKey: string;
+    name: string | null;
+    gatewayUrl: string;
+    pairKey: string | null;
+  }) => void;
   onClose: () => void;
 };
 
@@ -27,7 +32,17 @@ const STATUS_PENDING = '等待对方确认…';
 function friendlyNetworkError(e: unknown, prefix: string): string {
   const raw = e instanceof Error ? e.message : String(e);
   const msg = raw && raw !== 'undefined' && raw !== 'null' ? raw : '';
-  if (msg === 'Failed to fetch') {
+  // 浏览器 fetch 失败的几种文本（不同内核不同）：
+  //   - "Failed to fetch"   Chromium / Firefox（最常见）
+  //   - "Load failed"        Safari / iOS WebView / Tauri macOS WebView
+  //   - "NetworkError"       旧 Firefox
+  // 都归到"网络连不上"提示。
+  if (
+    msg === 'Failed to fetch' ||
+    msg === 'Load failed' ||
+    msg === 'NetworkError' ||
+    msg === 'Network request failed'
+  ) {
     return `${prefix}：网络连不上，请检查 URL / 端口 / 防火墙`;
   }
   if (msg.startsWith('invalid JSON response')) {
@@ -119,7 +134,12 @@ export function PairDialog({
         pairKey: pairKey || null,
         clientName: data.name,
       });
-      onPaired({ clientKey: data.clientKey, name: data.name });
+      onPaired({
+        clientKey: data.clientKey,
+        name: data.name,
+        gatewayUrl: url,
+        pairKey: pairKey || null,
+      });
       return;
     } catch (e) {
       if (e instanceof ApiError && e.code === 0) {
@@ -148,7 +168,12 @@ export function PairDialog({
                 pairKey: pairKey || null,
                 clientName: name || null,
               });
-              onPaired({ clientKey, name: name || null });
+              onPaired({
+                clientKey,
+                name: name || null,
+                gatewayUrl: url,
+                pairKey: pairKey || null,
+              });
             }
           } catch (e) {
             // 404 token_not_found = CLI 调 /internal/pair/resolve 已 commit 并把
@@ -169,7 +194,12 @@ export function PairDialog({
               } catch (saveErr) {
                 console.warn('saveSecureConfig failed (production 应不发生):', saveErr);
               }
-              onPaired({ clientKey, name: name || null });
+              onPaired({
+                clientKey,
+                name: name || null,
+                gatewayUrl: url,
+                pairKey: pairKey || null,
+              });
             }
           }
         };
