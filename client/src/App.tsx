@@ -15,6 +15,7 @@ import { PairBanner } from './components/PairBanner.js';
 import { PairDialog } from './components/PairDialog.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
 import { loadSecureConfig, clearSecureConfig, type SecureConfig } from './lib/secure-store.js';
+import { randomUUID } from './lib/uuid.js';
 
 const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL ?? 'http://127.0.0.1:8787';
 // 测试时可通过 import.meta.env 覆盖；缺省 5 min。
@@ -52,7 +53,7 @@ function App() {
   const [showDialog, setShowDialog] = useState(false);
   // 首次配对（无 secureConfig）时为 PairDialog 提供稳定的临时 clientKey。
   // 用 useState 初始化函数确保只生成一次，不随 re-render 抖动。
-  const [draftKey, setDraftKey] = useState<string>(() => crypto.randomUUID());
+  const [draftKey, setDraftKey] = useState<string>(() => randomUUID());
 
   // 启动时读 secure config；无则进入 NEED_PAIR。
   useEffect(() => {
@@ -143,7 +144,7 @@ function App() {
     setIsMismatch(false);
     setShowDialog(false);
     // 下一次开 dialog 重新生成 draftKey（避免复用已配对的临时 key）。
-    setDraftKey(crypto.randomUUID());
+    setDraftKey(randomUUID());
   };
 
   const handleClear = async () => {
