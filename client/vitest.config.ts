@@ -1,12 +1,17 @@
 // 客户端 Vitest 配置：测试文件位于 test/ 目录（v4 重构）。
-// v1 仅做最小冒烟；后续补 @testing-library/react 等再做组件测试。
+// v5 放宽：i18n 资源小且与代码同模块稳定，co-locate 测试到 src/i18n/*.test.ts。
+// 其它源码模块仍推荐用 test/ 集中放（与构建产物隔离）。
 import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   test: {
     environment: 'jsdom',
-    include: ['test/**/*.test.{ts,tsx}'],
+    include: [
+      'test/**/*.test.{ts,tsx}',
+      // v5: i18n 模块允许 co-locate 测试
+      'src/i18n/**/*.test.{ts,tsx}',
+    ],
     globals: true,
     setupFiles: ['./test/setup.ts'],
     coverage: {
