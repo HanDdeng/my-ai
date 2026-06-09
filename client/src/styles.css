@@ -172,7 +172,8 @@ body {
 .app-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: var(--s-2);
   margin-bottom: var(--s-7);
   font-size: var(--fs-mono);
   text-transform: uppercase;
@@ -181,6 +182,7 @@ body {
 }
 
 .app-meta .brand {
+  flex: 1;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 18px;
@@ -602,6 +604,37 @@ body {
 
 .theme-toggle[data-current='dark'] .dot {
   background: var(--signal);
+}
+
+/* ----------------------------------------------------------
+   Language toggle (v5)
+   ---------------------------------------------------------- */
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  background: transparent;
+  border: var(--bw) solid var(--hairline);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  padding: 6px 10px;
+  cursor: pointer;
+  position: relative;
+  transition: border-color var(--t-fast) var(--ease);
+}
+
+.lang-toggle:hover {
+  border-color: var(--signal);
+}
+
+.lang-toggle .dot {
+  width: 8px;
+  height: 8px;
+  margin: 0;
+  background: var(--fg);
 }
 
 /* ----------------------------------------------------------
