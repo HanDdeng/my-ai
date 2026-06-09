@@ -1,8 +1,7 @@
-// 主题切换按钮：在 light / dark 之间切换。
-// - 初始主题：localStorage > prefers-color-scheme > light
-// - 主题写入 :root[data-theme]，CSS 变量随之响应
-// - 文案显示"当前模式 / 切到另一模式"
+// 主题切换按钮（v5）：明 ↔ 暗。点轮换 + localStorage 持久化。
+// v5: 全文案走 i18n（aria-label 含 state/next 插值）。
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type Theme = 'light' | 'dark';
 const STORAGE_KEY = 'my-ai:theme';
@@ -31,6 +30,7 @@ function applyTheme(theme: Theme): void {
 }
 
 export function ThemeToggle() {
+  const { t } = useTranslation();
   // 初始用函数避免每次 render 读 localStorage。
   const [theme, setTheme] = useState<Theme>(readInitialTheme);
 
@@ -48,18 +48,22 @@ export function ThemeToggle() {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   }, []);
 
-  const next = theme === 'dark' ? 'LIGHT' : 'DARK';
+  const isDark = theme === 'dark';
+  const stateLabel = isDark ? t('theme.dark') : t('theme.light');
+  const nextLabel = isDark ? t('theme.light') : t('theme.dark');
+  const nextValue: Theme = isDark ? 'light' : 'dark';
+
   return (
     <button
       type="button"
       className="theme-toggle"
       data-current={theme}
       onClick={toggle}
-      aria-label={`当前 ${theme === 'dark' ? '暗' : '亮'}色主题，点击切换到 ${theme === 'dark' ? '亮' : '暗'}色`}
-      title={`主题 · ${theme} → ${theme === 'dark' ? 'light' : 'dark'}`}
+      aria-label={t('theme.ariaCurrent', { state: stateLabel, next: nextLabel })}
+      title={`${stateLabel} → ${nextValue}`}
     >
       <span className="dot" aria-hidden="true" />
-      <span>{next}</span>
+      <span>{nextLabel}</span>
     </button>
   );
 }
