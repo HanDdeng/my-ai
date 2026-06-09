@@ -19,6 +19,15 @@ const LOCALES = ['en', 'zh-CN'];
 export function checkI18n(data) {
   const errors = [];
 
+  // 0. 顶层必须是 plain object（防御 locale 整个被替换为 primitive 的边界情况）
+  for (const lng of Object.keys(data)) {
+    if (data[lng] === null || typeof data[lng] !== 'object' || Array.isArray(data[lng])) {
+      errors.push(
+        `✖ ${lng} 根节点必须是 object（实际 ${Array.isArray(data[lng]) ? 'array' : typeof data[lng]}）`,
+      );
+    }
+  }
+
   const flat = {};
   for (const lng of Object.keys(data)) {
     flat[lng] = flattenKeys(data[lng], '', `${lng}/`);
