@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "components": {
-    "client": { "version": "0.0.3" },
+    "client": { "version": "0.0.4" },
     "gateway": { "version": "0.0.3" },
     "core": { "version": "0.0.3" }
   },
