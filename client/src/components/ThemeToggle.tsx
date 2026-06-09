@@ -51,7 +51,6 @@ export function ThemeToggle() {
   const isDark = theme === 'dark';
   const stateLabel = isDark ? t('theme.dark') : t('theme.light');
   const nextLabel = isDark ? t('theme.light') : t('theme.dark');
-  const nextValue: Theme = isDark ? 'light' : 'dark';
 
   return (
     <button
@@ -60,7 +59,7 @@ export function ThemeToggle() {
       data-current={theme}
       onClick={toggle}
       aria-label={t('theme.ariaCurrent', { state: stateLabel, next: nextLabel })}
-      title={`${stateLabel} → ${nextValue}`}
+      title={`${stateLabel} → ${nextLabel}`}
     >
       <span className="dot" aria-hidden="true" />
       <span>{nextLabel}</span>
