@@ -40,6 +40,10 @@ catalog:
   # better-sqlite3 的 TypeScript 类型
   '@types/better-sqlite3': ^7.6.11
 
+  # v5 客户端 i18n
+  i18next: ^23.16.4
+  react-i18next: ^15.1.0
+
 allowBuilds:
   better-sqlite3: true
   esbuild: true
