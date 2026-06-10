@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { openDatabase } from '@/db/index.js';
 import { AgentsDAO } from '@/db/agents.js';
 import { agentRoutes } from '@/routes/agents.js';
@@ -15,7 +15,7 @@ describe('routes /v1/agents/:id', () => {
     const dao = new AgentsDAO(db);
     const sessionsDao = new SessionsDAO(db);
     app = Fastify();
-    app.setErrorHandler((err, _req, reply) => {
+    app.setErrorHandler((err: unknown, _req: FastifyRequest, reply: FastifyReply) => {
       if (err instanceof HttpError) {
         return reply.code(err.status).send({ data: null, code: err.status, message: err.code });
       }
@@ -26,8 +26,12 @@ describe('routes /v1/agents/:id', () => {
     });
     (app as unknown as { agents: AgentsDAO }).agents = dao;
     (app as unknown as { sessions: SessionsDAO }).sessions = sessionsDao;
-    await app.register(async i => { await agentItemRoutes(i); });
-    await app.register(async i => { await agentRoutes(i); });
+    await app.register(async (i: FastifyInstance) => {
+      await agentItemRoutes(i);
+    });
+    await app.register(async (i: FastifyInstance) => {
+      await agentRoutes(i);
+    });
   });
 
   afterEach(async () => {
@@ -36,7 +40,8 @@ describe('routes /v1/agents/:id', () => {
 
   const insertEcho = async (id = 'a-1', name = 'Echo') => {
     await app.inject({
-      method: 'POST', url: '/v1/agents',
+      method: 'POST',
+      url: '/v1/agents',
       payload: { id, name, baseUrl: 'http://x/v1', model: 'm' },
     });
   };
@@ -57,7 +62,9 @@ describe('routes /v1/agents/:id', () => {
   it('PATCH 改 description → 持久化', async () => {
     await insertEcho();
     const res = await app.inject({
-      method: 'PATCH', url: '/v1/agents/a-1', payload: { description: 'new' },
+      method: 'PATCH',
+      url: '/v1/agents/a-1',
+      payload: { description: 'new' },
     });
     expect(res.statusCode).toBe(200);
     const got = await app.inject({ method: 'GET', url: '/v1/agents/a-1' });
@@ -66,7 +73,9 @@ describe('routes /v1/agents/:id', () => {
 
   it('PATCH 不存在 → 404', async () => {
     const res = await app.inject({
-      method: 'PATCH', url: '/v1/agents/nope', payload: { description: 'x' },
+      method: 'PATCH',
+      url: '/v1/agents/nope',
+      payload: { description: 'x' },
     });
     expect(res.statusCode).toBe(404);
   });
@@ -75,7 +84,9 @@ describe('routes /v1/agents/:id', () => {
     await insertEcho('a-1', 'Echo');
     await insertEcho('a-2', 'Other');
     const res = await app.inject({
-      method: 'PATCH', url: '/v1/agents/a-2', payload: { name: 'Echo' },
+      method: 'PATCH',
+      url: '/v1/agents/a-2',
+      payload: { name: 'Echo' },
     });
     expect(res.statusCode).toBe(409);
   });
@@ -97,8 +108,12 @@ describe('routes /v1/agents/:id', () => {
     await insertEcho();
     // 直接通过 DAO 插一个 session
     (app as unknown as { sessions: SessionsDAO }).sessions.insert({
-      id: 's-1', agent_id: 'a-1', client_key: 'ck', title: '',
-      created_at: '2026-06-10T00:00:00.000Z', updated_at: '2026-06-10T00:00:00.000Z',
+      id: 's-1',
+      agent_id: 'a-1',
+      client_key: 'ck',
+      title: '',
+      created_at: '2026-06-10T00:00:00.000Z',
+      updated_at: '2026-06-10T00:00:00.000Z',
     });
     await app.inject({ method: 'DELETE', url: '/v1/agents/a-1' });
     const s = (app as unknown as { sessions: SessionsDAO }).sessions.get('s-1');

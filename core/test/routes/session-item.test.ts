@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { openDatabase } from '@/db/index.js';
 import { AgentsDAO } from '@/db/agents.js';
 import { SessionsDAO } from '@/db/sessions.js';
@@ -16,7 +16,7 @@ describe('routes /v1/sessions/:id', () => {
     const agents = new AgentsDAO(db);
     const sessions = new SessionsDAO(db);
     app = Fastify();
-    app.setErrorHandler((err, _req, reply) => {
+    app.setErrorHandler((err: unknown, _req: FastifyRequest, reply: FastifyReply) => {
       if (err instanceof HttpError) {
         return reply.code(err.status).send({ data: null, code: err.status, message: err.code });
       }
@@ -25,7 +25,7 @@ describe('routes /v1/sessions/:id', () => {
     (app as unknown as { agents: AgentsDAO }).agents = agents;
     (app as unknown as { sessions: SessionsDAO }).sessions = sessions;
     await app.register(internalClientKeyHook);
-    await app.register(async i => {
+    await app.register(async (i: FastifyInstance) => {
       await agentRoutes(i);
       await sessionItemRoutes(i);
     });
@@ -38,21 +38,27 @@ describe('routes /v1/sessions/:id', () => {
   // 内部 helper：建 agent + session（避开 sessions 路由以减少 fixture 依赖）
   const seed = async (ck: string, sessionId = 's-1') => {
     await app.inject({
-      method: 'POST', url: '/v1/agents',
+      method: 'POST',
+      url: '/v1/agents',
       headers: { 'x-internal-client-key': ck },
       payload: { id: 'a-1', name: 'Echo', baseUrl: 'http://x/v1', model: 'm' },
     });
     (app as unknown as { sessions: SessionsDAO }).sessions.insert({
-      id: sessionId, agent_id: 'a-1', client_key: ck, title: '',
-      created_at: '2026-06-10T00:00:00.000Z', updated_at: '2026-06-10T00:00:00.000Z',
+      id: sessionId,
+      agent_id: 'a-1',
+      client_key: ck,
+      title: '',
+      created_at: '2026-06-10T00:00:00.000Z',
+      updated_at: '2026-06-10T00:00:00.000Z',
     });
   };
 
   it('GET 存在 → 200', async () => {
     await seed('ck-A');
     const res = await app.inject({
-      method: 'GET', url: '/v1/sessions/s-1',
-      headers: { 'x-internal-client-key': 'ck-B' },  // 跨 clientKey
+      method: 'GET',
+      url: '/v1/sessions/s-1',
+      headers: { 'x-internal-client-key': 'ck-B' }, // 跨 clientKey
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().data.clientKey).toBe('ck-A');
@@ -60,7 +66,8 @@ describe('routes /v1/sessions/:id', () => {
 
   it('GET 不存在 → 404 session_not_found', async () => {
     const res = await app.inject({
-      method: 'GET', url: '/v1/sessions/nope',
+      method: 'GET',
+      url: '/v1/sessions/nope',
       headers: { 'x-internal-client-key': 'ck' },
     });
     expect(res.statusCode).toBe(404);
@@ -70,12 +77,14 @@ describe('routes /v1/sessions/:id', () => {
   it('DELETE 存在 → 200 + 删行', async () => {
     await seed('ck-A');
     const res = await app.inject({
-      method: 'DELETE', url: '/v1/sessions/s-1',
-      headers: { 'x-internal-client-key': 'ck-B' },  // 跨 clientKey
+      method: 'DELETE',
+      url: '/v1/sessions/s-1',
+      headers: { 'x-internal-client-key': 'ck-B' }, // 跨 clientKey
     });
     expect(res.statusCode).toBe(200);
     const got = await app.inject({
-      method: 'GET', url: '/v1/sessions/s-1',
+      method: 'GET',
+      url: '/v1/sessions/s-1',
       headers: { 'x-internal-client-key': 'ck' },
     });
     expect(got.statusCode).toBe(404);

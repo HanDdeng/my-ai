@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { openDatabase } from '@/db/index.js';
 import { AgentsDAO } from '@/db/agents.js';
 import { agentRoutes } from '@/routes/agents.js';
@@ -16,7 +16,7 @@ describe('routes /v1/agents', () => {
     dir = mkdtempSync(join(tmpdir(), 'core-routes-'));
     const db = openDatabase(':memory:');
     app = Fastify();
-    app.setErrorHandler((err, _req, reply) => {
+    app.setErrorHandler((err: unknown, _req: FastifyRequest, reply: FastifyReply) => {
       if (err instanceof HttpError) {
         return reply.code(err.status).send({ data: null, code: err.status, message: err.code });
       }
@@ -27,7 +27,7 @@ describe('routes /v1/agents', () => {
     });
     app.decorate('db', db);
     app.decorate('agents', new AgentsDAO(db));
-    await app.register(async i => {
+    await app.register(async (i: FastifyInstance) => {
       await agentRoutes(i);
     });
   });
@@ -40,9 +40,13 @@ describe('routes /v1/agents', () => {
   describe('POST /v1/agents', () => {
     it('合法 body → 200 + 持久化', async () => {
       const res = await app.inject({
-        method: 'POST', url: '/v1/agents',
+        method: 'POST',
+        url: '/v1/agents',
         payload: {
-          id: 'a-1', name: 'Echo', baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5:7b',
+          id: 'a-1',
+          name: 'Echo',
+          baseUrl: 'http://localhost:11434/v1',
+          model: 'qwen2.5:7b',
         },
       });
       expect(res.statusCode).toBe(200);
@@ -56,7 +60,9 @@ describe('routes /v1/agents', () => {
 
     it('缺必填字段 → 400 invalid_body', async () => {
       const res = await app.inject({
-        method: 'POST', url: '/v1/agents', payload: { name: 'Echo' }, // 缺 baseUrl/model/id
+        method: 'POST',
+        url: '/v1/agents',
+        payload: { name: 'Echo' }, // 缺 baseUrl/model/id
       });
       expect(res.statusCode).toBe(400);
       expect(res.json().message).toBe('invalid_body');
@@ -64,11 +70,13 @@ describe('routes /v1/agents', () => {
 
     it('name 重复 → 409 agent_name_conflict', async () => {
       await app.inject({
-        method: 'POST', url: '/v1/agents',
+        method: 'POST',
+        url: '/v1/agents',
         payload: { id: 'a-1', name: 'Echo', baseUrl: 'http://x/v1', model: 'm' },
       });
       const res = await app.inject({
-        method: 'POST', url: '/v1/agents',
+        method: 'POST',
+        url: '/v1/agents',
         payload: { id: 'a-2', name: 'Echo', baseUrl: 'http://x/v1', model: 'm' },
       });
       expect(res.statusCode).toBe(409);
@@ -85,7 +93,8 @@ describe('routes /v1/agents', () => {
 
     it('有 agent → 列出', async () => {
       await app.inject({
-        method: 'POST', url: '/v1/agents',
+        method: 'POST',
+        url: '/v1/agents',
         payload: { id: 'a-1', name: 'Echo', baseUrl: 'http://x/v1', model: 'm' },
       });
       const res = await app.inject({ method: 'GET', url: '/v1/agents' });

@@ -11,8 +11,8 @@ export type ChatMessage =
 export type ChatRequest = {
   model: string;
   messages: ChatMessage[];
-  temperature?: number;
-  maxTokens?: number;
+  temperature?: number | undefined;
+  maxTokens?: number | undefined;
 };
 
 /** 单次 chat 响应。usage 可选，部分 provider 不返回。 */

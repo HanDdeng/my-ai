@@ -5,7 +5,7 @@
 // 调用 POST /v1/agents。Task 17 我沿用 Task 16 的修法：也注册 agentRoutes 让
 // happy path 可行（与 plan §17 "Deviation note" 一致）。
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { openDatabase } from '@/db/index.js';
 import { AgentsDAO } from '@/db/agents.js';
 import { SessionsDAO } from '@/db/sessions.js';
@@ -22,7 +22,7 @@ describe('routes POST /v1/sessions', () => {
     const dao = new AgentsDAO(db);
     const sessionsDao = new SessionsDAO(db);
     app = Fastify();
-    app.setErrorHandler((err, _req, reply) => {
+    app.setErrorHandler((err: unknown, _req: FastifyRequest, reply: FastifyReply) => {
       if (err instanceof HttpError) {
         return reply.code(err.status).send({ data: null, code: err.status, message: err.code });
       }
@@ -35,8 +35,12 @@ describe('routes POST /v1/sessions', () => {
     (app as unknown as { sessions: SessionsDAO }).sessions = sessionsDao;
     await app.register(internalClientKeyHook);
     // 偏离 spec：注册 agentRoutes 以便 happy path 能 POST /v1/agents 建 agent。
-    await app.register(async i => { await agentRoutes(i); });
-    await app.register(async i => { await sessionRoutes(i); });
+    await app.register(async (i: FastifyInstance) => {
+      await agentRoutes(i);
+    });
+    await app.register(async (i: FastifyInstance) => {
+      await sessionRoutes(i);
+    });
   });
 
   afterEach(async () => {
@@ -45,13 +49,15 @@ describe('routes POST /v1/sessions', () => {
 
   it('合法 body → 200 + 写 clientKey', async () => {
     await app.inject({
-      method: 'POST', url: '/v1/agents',
+      method: 'POST',
+      url: '/v1/agents',
       headers: { 'x-internal-client-key': 'ck' },
       payload: { id: 'a-1', name: 'Echo', baseUrl: 'http://x/v1', model: 'm' },
     });
 
     const res = await app.inject({
-      method: 'POST', url: '/v1/sessions',
+      method: 'POST',
+      url: '/v1/sessions',
       headers: { 'x-internal-client-key': 'client-abc' },
       payload: { id: 's-1', agentId: 'a-1' },
     });
@@ -66,7 +72,8 @@ describe('routes POST /v1/sessions', () => {
 
   it('agentId 不存在 → 404 agent_not_found', async () => {
     const res = await app.inject({
-      method: 'POST', url: '/v1/sessions',
+      method: 'POST',
+      url: '/v1/sessions',
       headers: { 'x-internal-client-key': 'ck' },
       payload: { id: 's-1', agentId: 'nope' },
     });
@@ -76,12 +83,14 @@ describe('routes POST /v1/sessions', () => {
 
   it('缺 internal-client-key → 401 unauthorized', async () => {
     await app.inject({
-      method: 'POST', url: '/v1/agents',
+      method: 'POST',
+      url: '/v1/agents',
       headers: { 'x-internal-client-key': 'ck' },
       payload: { id: 'a-1', name: 'Echo', baseUrl: 'http://x/v1', model: 'm' },
     });
     const res = await app.inject({
-      method: 'POST', url: '/v1/sessions',
+      method: 'POST',
+      url: '/v1/sessions',
       payload: { id: 's-1', agentId: 'a-1' },
     });
     expect(res.statusCode).toBe(401);
@@ -90,9 +99,10 @@ describe('routes POST /v1/sessions', () => {
 
   it('body 缺字段 → 400 invalid_body', async () => {
     const res = await app.inject({
-      method: 'POST', url: '/v1/sessions',
+      method: 'POST',
+      url: '/v1/sessions',
       headers: { 'x-internal-client-key': 'ck' },
-      payload: { id: 's-1' },  // 缺 agentId
+      payload: { id: 's-1' }, // 缺 agentId
     });
     expect(res.statusCode).toBe(400);
   });

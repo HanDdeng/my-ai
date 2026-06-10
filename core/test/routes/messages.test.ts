@@ -2,7 +2,7 @@
 // v6.1：写 user + assistant 消息到 DB，调 OpenAI 兼容 LLM，返回两条消息。
 // fetch 全局 mock，避免真网络。
 import { describe, it, expect, beforeEach, afterEach, vi, afterAll } from 'vitest';
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { openDatabase } from '@/db/index.js';
 import { AgentsDAO } from '@/db/agents.js';
@@ -15,7 +15,9 @@ import { internalClientKeyHook } from '@/hooks/internal-client-key.js';
 import { HttpError } from '@/errors.js';
 
 const realFetch = global.fetch;
-afterAll(() => { global.fetch = realFetch; });
+afterAll(() => {
+  global.fetch = realFetch;
+});
 
 describe('routes /v1/sessions/:id/messages', () => {
   let app: ReturnType<typeof Fastify>;
@@ -26,7 +28,7 @@ describe('routes /v1/sessions/:id/messages', () => {
     const sessions = new SessionsDAO(db);
     const messages = new MessagesDAO(db);
     app = Fastify();
-    app.setErrorHandler((err, _req, reply) => {
+    app.setErrorHandler((err: unknown, _req: FastifyRequest, reply: FastifyReply) => {
       if (err instanceof HttpError) {
         return reply.code(err.status).send({ data: null, code: err.status, message: err.code });
       }
@@ -38,9 +40,11 @@ describe('routes /v1/sessions/:id/messages', () => {
     (app as unknown as { agents: AgentsDAO }).agents = agents;
     (app as unknown as { sessions: SessionsDAO }).sessions = sessions;
     (app as unknown as { messages: MessagesDAO }).messages = messages;
-    (app as unknown as { config: { LLM_API_KEY?: string } }).config = { LLM_API_KEY: undefined };
+    (app as unknown as { config: { LLM_API_KEY?: string | undefined } }).config = {
+      LLM_API_KEY: undefined,
+    };
     await app.register(internalClientKeyHook);
-    await app.register(async i => {
+    await app.register(async (i: FastifyInstance) => {
       await agentRoutes(i);
       await sessionRoutes(i);
       await messageRoutes(i);
@@ -53,12 +57,14 @@ describe('routes /v1/sessions/:id/messages', () => {
 
   const seedAgentAndSession = async () => {
     await app.inject({
-      method: 'POST', url: '/v1/agents',
+      method: 'POST',
+      url: '/v1/agents',
       headers: { 'x-internal-client-key': 'ck' },
       payload: { id: 'a-1', name: 'Echo', baseUrl: 'http://x/v1', model: 'm' },
     });
     await app.inject({
-      method: 'POST', url: '/v1/sessions',
+      method: 'POST',
+      url: '/v1/sessions',
       headers: { 'x-internal-client-key': 'ck' },
       payload: { id: 's-1', agentId: 'a-1' },
     });
@@ -68,7 +74,8 @@ describe('routes /v1/sessions/:id/messages', () => {
     it('session 存在 + 无 messages → 200 + []', async () => {
       await seedAgentAndSession();
       const res = await app.inject({
-        method: 'GET', url: '/v1/sessions/s-1/messages',
+        method: 'GET',
+        url: '/v1/sessions/s-1/messages',
         headers: { 'x-internal-client-key': 'ck' },
       });
       expect(res.statusCode).toBe(200);
@@ -77,7 +84,8 @@ describe('routes /v1/sessions/:id/messages', () => {
 
     it('session 不存在 → 404', async () => {
       const res = await app.inject({
-        method: 'GET', url: '/v1/sessions/nope/messages',
+        method: 'GET',
+        url: '/v1/sessions/nope/messages',
         headers: { 'x-internal-client-key': 'ck' },
       });
       expect(res.statusCode).toBe(404);
@@ -94,7 +102,8 @@ describe('routes /v1/sessions/:id/messages', () => {
       global.fetch = fetchMock as unknown as typeof fetch;
 
       const res = await app.inject({
-        method: 'POST', url: '/v1/sessions/s-1/messages',
+        method: 'POST',
+        url: '/v1/sessions/s-1/messages',
         headers: { 'x-internal-client-key': 'ck' },
         payload: { id: randomUUID(), content: 'hi' },
       });
@@ -115,12 +124,20 @@ describe('routes /v1/sessions/:id/messages', () => {
 
     it('system_prompt → 拼到 messages 首条', async () => {
       await app.inject({
-        method: 'POST', url: '/v1/agents',
+        method: 'POST',
+        url: '/v1/agents',
         headers: { 'x-internal-client-key': 'ck' },
-        payload: { id: 'a-1', name: 'Echo', baseUrl: 'http://x/v1', model: 'm', systemPrompt: 'be terse' },
+        payload: {
+          id: 'a-1',
+          name: 'Echo',
+          baseUrl: 'http://x/v1',
+          model: 'm',
+          systemPrompt: 'be terse',
+        },
       });
       await app.inject({
-        method: 'POST', url: '/v1/sessions',
+        method: 'POST',
+        url: '/v1/sessions',
         headers: { 'x-internal-client-key': 'ck' },
         payload: { id: 's-1', agentId: 'a-1' },
       });
@@ -132,7 +149,8 @@ describe('routes /v1/sessions/:id/messages', () => {
       global.fetch = fetchMock as unknown as typeof fetch;
 
       await app.inject({
-        method: 'POST', url: '/v1/sessions/s-1/messages',
+        method: 'POST',
+        url: '/v1/sessions/s-1/messages',
         headers: { 'x-internal-client-key': 'ck' },
         payload: { id: randomUUID(), content: 'hi' },
       });
@@ -143,7 +161,8 @@ describe('routes /v1/sessions/:id/messages', () => {
 
     it('session 不存在 → 404', async () => {
       const res = await app.inject({
-        method: 'POST', url: '/v1/sessions/nope/messages',
+        method: 'POST',
+        url: '/v1/sessions/nope/messages',
         headers: { 'x-internal-client-key': 'ck' },
         payload: { id: randomUUID(), content: 'hi' },
       });
@@ -153,12 +172,15 @@ describe('routes /v1/sessions/:id/messages', () => {
     it('LLM upstream 5xx → 502 upstream_error', async () => {
       await seedAgentAndSession();
       const fetchMock = vi.fn().mockResolvedValueOnce({
-        ok: false, status: 500, text: async () => 'bad',
+        ok: false,
+        status: 500,
+        text: async () => 'bad',
       });
       global.fetch = fetchMock as unknown as typeof fetch;
 
       const res = await app.inject({
-        method: 'POST', url: '/v1/sessions/s-1/messages',
+        method: 'POST',
+        url: '/v1/sessions/s-1/messages',
         headers: { 'x-internal-client-key': 'ck' },
         payload: { id: randomUUID(), content: 'hi' },
       });

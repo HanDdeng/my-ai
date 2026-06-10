@@ -9,7 +9,7 @@ export type OpenAICompatibleConfig = {
   baseUrl: string;
   apiKey?: string;
   model: string;
-  maxTokens?: number;
+  maxTokens?: number | undefined;
 };
 
 export class OpenAICompatibleLLMClient implements LLMClient {
