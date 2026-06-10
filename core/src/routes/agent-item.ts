@@ -1,8 +1,9 @@
 // GET / PATCH / DELETE /v1/agents/{id}。
+// CASCADE 由 schema.sql 的 ON DELETE CASCADE 约束 + PRAGMA foreign_keys=ON 处理，
+// 路由层不直接调 SessionsDAO。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AgentsDAO, type AgentRow } from '../db/agents.js';
-import { SessionsDAO } from '../db/sessions.js';
 import { HttpError } from '../errors.js';
 
 const PatchAgentBody = z
