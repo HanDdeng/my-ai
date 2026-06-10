@@ -27,6 +27,13 @@ export function openDatabase(path: string): DatabaseType {
     .get();
 
   if (!tableExists) {
+    // 区分两种情况：
+    // 1) 全新空库 → schema.sql + 写 version=1
+    // 2) DB 里已有任意表但 schema_version 缺失 → 损坏的旧库，不迁移，loud fail
+    const anyTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1").get();
+    if (anyTable) {
+      throw new Error('schema version mismatch: schema_version table missing in non-empty DB');
+    }
     // 首启动：执行 schema.sql + 写 version=1
     db.exec(loadSchemaSql());
     db.prepare('INSERT INTO schema_version (version, applied_at) VALUES (?, ?)').run(
