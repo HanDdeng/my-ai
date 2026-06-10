@@ -1,14 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MismatchBanner } from '@/components/MismatchBanner.js';
+import i18n from '@/i18n/index.js';
 
 describe('MismatchBanner', () => {
   it('渲染完整提示文案', () => {
     render(
       <MismatchBanner gatewayVersion="1.5.0" requiredRange=">=0.0.2 <0.1.0" onDismiss={vi.fn()} />,
     );
-    expect(screen.getByText(/1\.5\.0/)).toBeInTheDocument();
-    expect(screen.getByText(/>=0\.0\.2 <0\.1\.0/)).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('mismatch.tag'))).toBeInTheDocument();
+    const expectedMessage = i18n.t('mismatch.message', {
+      version: 'v1.5.0',
+      range: '>=0.0.2 <0.1.0',
+    });
+    expect(screen.getByText(expectedMessage)).toBeInTheDocument();
   });
 
   it('点关闭按钮调用 onDismiss', () => {
@@ -20,7 +25,7 @@ describe('MismatchBanner', () => {
         onDismiss={onDismiss}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /关闭/ }));
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('mismatch.dismiss') }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
@@ -29,6 +34,6 @@ describe('MismatchBanner', () => {
       <MismatchBanner gatewayVersion={null} requiredRange=">=0.0.2 <0.1.0" onDismiss={vi.fn()} />,
     );
     // 不应该有 "vnull" 这种文案
-    expect(screen.queryByText(/null/)).toBeNull();
+    expect(screen.queryByText(/vnull/)).toBeNull();
   });
 });

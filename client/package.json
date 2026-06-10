@@ -1,6 +1,6 @@
 {
   "name": "@my-ai/client",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,8 +18,10 @@
     "@tauri-apps/api": "^2.1.1",
     "@tauri-apps/plugin-http": "^2.0.0",
     "@tauri-apps/plugin-stronghold": "^2.0.0",
+    "i18next": "catalog:",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "catalog:",
     "semver": "catalog:"
   },
   "devDependencies": {

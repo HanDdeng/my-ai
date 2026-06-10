@@ -1,4 +1,5 @@
 // PairDialog 组件测试：覆盖初始 render + 提交 + 私有模式轮询。
+// v5: 文案断言改用 i18n.t(key)，与译文解耦。
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
@@ -21,6 +22,7 @@ vi.mock('@/lib/secure-store.js', () => ({
 
 import { apiFetch, ApiError } from '@/lib/api.js';
 import { PairDialog } from '@/components/PairDialog.js';
+import i18n from '@/i18n/index.js';
 
 describe('<PairDialog>', () => {
   beforeEach(() => {
@@ -29,9 +31,9 @@ describe('<PairDialog>', () => {
 
   it('初始 render：表单 + 提交按钮可见', () => {
     render(<PairDialog initialUrl="" clientKey="abc" onPaired={() => {}} onClose={() => {}} />);
-    expect(screen.getByLabelText('Gateway URL')).toBeTruthy();
-    expect(screen.getByLabelText('Pair Key (可选)')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '提交' })).toBeTruthy();
+    expect(screen.getByLabelText(i18n.t('pair.dialog.fields.url.label'))).toBeTruthy();
+    expect(screen.getByLabelText(i18n.t('pair.dialog.fields.pairKey.aria'))).toBeTruthy();
+    expect(screen.getByRole('button', { name: i18n.t('pair.dialog.actions.submit') })).toBeTruthy();
   });
 
   it('POST /pair 200 → 调 onPaired', async () => {
@@ -41,8 +43,10 @@ describe('<PairDialog>', () => {
     render(
       <PairDialog initialUrl="http://gw" clientKey="k" onPaired={onPaired} onClose={() => {}} />,
     );
-    fireEvent.change(screen.getByLabelText('Gateway URL'), { target: { value: 'http://gw' } });
-    fireEvent.click(screen.getByRole('button', { name: '提交' }));
+    fireEvent.change(screen.getByLabelText(i18n.t('pair.dialog.fields.url.label')), {
+      target: { value: 'http://gw' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pair.dialog.actions.submit') }));
     await waitFor(() =>
       expect(onPaired).toHaveBeenCalledWith({
         clientKey: 'k',
@@ -69,8 +73,10 @@ describe('<PairDialog>', () => {
     render(
       <PairDialog initialUrl="http://gw" clientKey="k" onPaired={onPaired} onClose={() => {}} />,
     );
-    fireEvent.change(screen.getByLabelText('Gateway URL'), { target: { value: 'http://gw' } });
-    fireEvent.click(screen.getByRole('button', { name: '提交' }));
+    fireEvent.change(screen.getByLabelText(i18n.t('pair.dialog.fields.url.label')), {
+      target: { value: 'http://gw' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('pair.dialog.actions.submit') }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(4000);
     });

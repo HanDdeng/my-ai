@@ -1,6 +1,8 @@
 // 顶部 banner：显示未配对 / 需重新配对 状态 + 提供两个按钮。
 // PAIRED / PAIR_PENDING 等其他状态不渲染。
-// 文案 / aria-label 保持向后兼容（被 PairBanner.test.tsx 断言）。
+// v5: 全文案走 i18n。
+import { useTranslation } from 'react-i18next';
+
 type Variant = 'NEED_PAIR' | 'NEED_REPAIR' | 'PAIRED';
 
 type Props = {
@@ -10,16 +12,13 @@ type Props = {
 };
 
 export function PairBanner({ variant, onGoToPair, onClear }: Props) {
+  const { t } = useTranslation();
   if (variant === 'PAIRED') {
     return null;
   }
   const isRepair = variant === 'NEED_REPAIR';
-  // kicker / message 分工：测试断言用 getByText 严格匹配单元素，
-  // 因此 /未配对/ 只能命中 message，/重新配对/ 只能命中 kicker。
-  const kicker = isRepair ? '⚠ 重新配对' : '待配对';
-  const message = isRepair
-    ? '上次的 clientKey 已失效，请发起新的配对请求。'
-    : '尚未配对。请先完成网关配对。';
+  // kicker / message 来自 i18n；不同 variant 用不同 namespace
+  const ns = isRepair ? 'pair.banner.needRepair' : 'pair.banner.needPair';
   const num = isRepair ? '01' : '00';
   return (
     <div role="alert" className={isRepair ? 'banner banner--need-repair' : 'banner'}>
@@ -27,15 +26,15 @@ export function PairBanner({ variant, onGoToPair, onClear }: Props) {
         {num}
       </span>
       <span className="banner-text">
-        <strong>{kicker}</strong>
-        {message}
+        <strong>{t(`${ns}.kicker`)}</strong>
+        {t(`${ns}.message`)}
       </span>
       <span className="banner-actions">
         <button type="button" className="btn btn--primary" onClick={onGoToPair}>
-          去配对
+          {t('pair.banner.actions.goPair')}
         </button>
         <button type="button" className="btn" onClick={onClear}>
-          清除配对
+          {t('pair.banner.actions.clear')}
         </button>
       </span>
     </div>

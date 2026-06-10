@@ -3,6 +3,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles.css';
+// v5: 触发 i18n 初始化（side-effect import）
+import './i18n/index.js';
 
 // 拿挂载点；找不到说明 HTML 模板有问题，直接抛错比静默失败更安全。
 const root = document.getElementById('root');

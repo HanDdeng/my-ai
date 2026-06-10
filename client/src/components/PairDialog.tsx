@@ -1,9 +1,19 @@
 // 配对弹出层：表单 + 提交 → GET /health 检查连通 → POST /pair → 成功/轮询。
-// v3 阶段简化 UI：3 个 input + 1 个 submit 按钮 + 状态文字。
+// v5: 全文案走 i18n；错误码 map（friendlyApiError 内 Record<number,string>）改为
+//     资源文件查表 i18n.t('errors.api.<code>')。
 // 文案 / aria-label / role 保持向后兼容（被 PairDialog.test.tsx 断言）。
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { apiFetch, ApiError } from '../lib/api.js';
 import { saveSecureConfig } from '../lib/secure-store.js';
+
+// v5: t() 函数签名从 useTranslation() 解构出来比手写 (k: string) => string 更稳：
+// 1) 与 i18next 的 TFunction 类型完全一致，避免 exactOptionalPropertyTypes
+//    之类的边界类型错配（手写签名只接受 string key，而 TFunction 还能接 string[]）；
+// 2) friendlyApiError / friendlyNetworkError 内 t(`errors.api.${code}`) 这种
+//    运行时拼 key 的调用，类型系统能继续 narrowing，不报"key 字面量不在资源里"。
+type Tx = TFunction<'translation', undefined>;
 
 type Props = {
   initialUrl: string;
@@ -22,14 +32,12 @@ type Props = {
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
-// 配对等待中的状态文案（timeout 判定 + 用户可见，单独提取出来保持一致）。
-const STATUS_PENDING = '等待对方确认…';
-
 // 网络层错误（fetch 失败 / JSON 解析失败）→ 普通用户能看懂的提示。
 // 原 e.message（"Failed to fetch" / "invalid JSON response from ..."）全是英文，
 // 非专业用户读了不知道是啥。
 // 任何路径都不能让 undefined / null 漏到 UI。
-function friendlyNetworkError(e: unknown, prefix: string): string {
+// v5: 文案从字面量改查 i18n key。
+function friendlyNetworkError(e: unknown, prefix: string, t: Tx): string {
   const raw = e instanceof Error ? e.message : String(e);
   const msg = raw && raw !== 'undefined' && raw !== 'null' ? raw : '';
   // 浏览器 fetch 失败的几种文本（不同内核不同）：
@@ -43,34 +51,26 @@ function friendlyNetworkError(e: unknown, prefix: string): string {
     msg === 'NetworkError' ||
     msg === 'Network request failed'
   ) {
-    return `${prefix}：网络连不上，请检查 URL / 端口 / 防火墙`;
+    return `${prefix}：${t('errors.network.fetchFail')}`;
   }
   if (msg.startsWith('invalid JSON response')) {
-    return `${prefix}：目标地址返回的不是 my-ai 网关响应（确认端口/URL 没指错）`;
+    return `${prefix}：${t('errors.network.notMyAi')}`;
   }
   if (msg) {
     return `${prefix}：${msg}`;
   }
-  return `${prefix}：网络异常（未知错误）`;
+  return `${prefix}：${t('errors.network.unknown')}`;
 }
 
 // 网关业务码 → 普通用户能看懂的提示。code 来自 gateway/src/response.ts err()。
-// 未列出的 code 用 message 兜底（message 为空时显示错误码，绝不漏 undefined）。
-function friendlyApiError(e: unknown, prefix: string): string {
+// v5: 文案从字面量 Record 改为查 i18n key；未列出 code 走 defaultValue + 兜底。
+function friendlyApiError(e: unknown, prefix: string, t: Tx): string {
   if (!(e instanceof ApiError)) {
-    return friendlyNetworkError(e, prefix);
+    return friendlyNetworkError(e, prefix, t);
   }
-  const map: Record<number, string> = {
-    400: '请求格式有误',
-    401: '客户端标识无效或缺失',
-    403: '无权限访问',
-    404: '资源不存在（确认码可能已过期）',
-    500: '网关内部错误',
-    502: '上游服务不可用',
-  };
-  const zh = map[e.code];
-  if (zh) {
-    return `${prefix}：${zh}`;
+  const translated = t(`errors.api.${e.code}`);
+  if (translated && translated !== `errors.api.${e.code}`) {
+    return `${prefix}：${translated}`;
   }
   // 兜底：message 可能为 undefined（网关漏字段）或空字符串
   const raw = (e.message ?? '').toString();
@@ -100,6 +100,7 @@ export function PairDialog({
   onPaired,
   onClose,
 }: Props) {
+  const { t } = useTranslation();
   const [url, setUrl] = useState(initialUrl);
   const [pairKey, setPairKey] = useState(initialPairKey ?? '');
   const [name, setName] = useState(initialName ?? '');
@@ -112,16 +113,16 @@ export function PairDialog({
 
   const submit = async () => {
     setError(null);
-    setStatus('正在连接网关…');
+    setStatus(t('pair.dialog.status.connecting'));
     setStatusState('idle');
     try {
       await apiFetch(`${url}/health`, { clientKey });
     } catch (e) {
-      setError(friendlyNetworkError(e, '连不上网关'));
+      setError(friendlyNetworkError(e, t('pair.dialog.errors.network'), t));
       setStatus(null);
       return;
     }
-    setStatus('正在配对…');
+    setStatus(t('pair.dialog.status.pairing'));
     try {
       const data = await apiFetch<{ clientKey: string; name: string | null }>(`${url}/pair`, {
         method: 'POST',
@@ -146,12 +147,12 @@ export function PairDialog({
         // 202 pair_pending：从 e.data 取 token，进入轮询
         const tk = (e.data as { token?: string } | null)?.token;
         if (!tk) {
-          setError('配对失败：网关响应缺少确认码');
+          setError(t('pair.dialog.errors.missingToken'));
           setStatus(null);
           return;
         }
         setToken(tk);
-        setStatus(STATUS_PENDING);
+        setStatus(t('pair.dialog.status.pending'));
         setStatusState('pending');
         let stopped = false;
         const poll = async () => {
@@ -207,8 +208,8 @@ export function PairDialog({
         setTimeout(() => {
           stopped = true;
           clearInterval(id);
-          if (status === STATUS_PENDING) {
-            setError('对方长时间未确认（5 分钟），请重试或联系管理员');
+          if (status === t('pair.dialog.status.pending')) {
+            setError(t('pair.dialog.errors.timeout'));
             setStatus(null);
             setStatusState('idle');
           }
@@ -216,7 +217,7 @@ export function PairDialog({
         void poll();
         return;
       }
-      setError(friendlyApiError(e, '配对失败'));
+      setError(friendlyApiError(e, t('pair.dialog.errors.pairFail'), t));
       setStatus(null);
       setStatusState('idle');
     }
@@ -231,18 +232,19 @@ export function PairDialog({
         }
       }}
     >
-      <div role="dialog" aria-label="配对网关" className="dialog">
+      <div role="dialog" aria-label={t('pair.dialog.title')} className="dialog">
         <header className="dialog-head">
           <h2 className="dialog-title">
-            配对<em>·</em>网关
+            {t('pair.dialog.title')}
+            <em>·</em>
           </h2>
-          <span className="dialog-sub">PAIRING / STEP 01</span>
+          <span className="dialog-sub">{t('pair.dialog.sub')}</span>
         </header>
         <div className="dialog-body">
           <div className="field">
             <label className="field-label" htmlFor="pair-url">
-              <span>Gateway URL</span>
-              <span className="req">REQ</span>
+              <span>{t('pair.dialog.fields.url.label')}</span>
+              <span className="req">{t('pair.dialog.fields.url.req')}</span>
             </label>
             <input
               id="pair-url"
@@ -250,16 +252,16 @@ export function PairDialog({
               type="text"
               value={url}
               onChange={e => setUrl(e.target.value)}
-              aria-label="Gateway URL"
-              placeholder="http://127.0.0.1:8787"
+              aria-label={t('pair.dialog.fields.url.label')}
+              placeholder={t('pair.dialog.fields.url.placeholder')}
               autoComplete="off"
               spellCheck={false}
             />
           </div>
           <div className="field">
             <label className="field-label" htmlFor="pair-key">
-              <span>Pair Key</span>
-              <span>OPT</span>
+              <span>{t('pair.dialog.fields.pairKey.label')}</span>
+              <span>{t('pair.dialog.fields.pairKey.opt')}</span>
             </label>
             <input
               id="pair-key"
@@ -267,15 +269,15 @@ export function PairDialog({
               type="password"
               value={pairKey}
               onChange={e => setPairKey(e.target.value)}
-              aria-label="Pair Key (可选)"
-              placeholder="私有模式凭证"
+              aria-label={t('pair.dialog.fields.pairKey.aria')}
+              placeholder={t('pair.dialog.fields.pairKey.placeholder')}
               autoComplete="off"
             />
           </div>
           <div className="field">
             <label className="field-label" htmlFor="pair-name">
-              <span>客户端名</span>
-              <span>OPT</span>
+              <span>{t('pair.dialog.fields.name.label')}</span>
+              <span>{t('pair.dialog.fields.name.opt')}</span>
             </label>
             <input
               id="pair-name"
@@ -283,8 +285,8 @@ export function PairDialog({
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              aria-label="客户端名"
-              placeholder="alice-laptop"
+              aria-label={t('pair.dialog.fields.name.aria')}
+              placeholder={t('pair.dialog.fields.name.placeholder')}
               autoComplete="off"
             />
           </div>
@@ -296,8 +298,8 @@ export function PairDialog({
           {token && (
             <div className="field">
               <span className="field-label">
-                <span>配对确认码</span>
-                <span>在网关所在主机终端运行 ↓</span>
+                <span>{t('pair.dialog.token.label')}</span>
+                <span>{t('pair.dialog.token.hintHead')}</span>
               </span>
               <code className="token-block">{token}</code>
               {/* 完整命令：用户单看 token 不知道该输入啥。直接给到可复制的命令行。 */}
@@ -310,7 +312,9 @@ export function PairDialog({
                     void copyCmd(`my-ai-gateway pair --token ${token}`, setCopied);
                   }}
                 >
-                  {copied === 'copied' ? '已复制' : '复制'}
+                  {copied === 'copied'
+                    ? t('pair.dialog.actions.copied')
+                    : t('pair.dialog.actions.copy')}
                 </button>
               </div>
               <p className="cmd-hint">
@@ -326,7 +330,7 @@ export function PairDialog({
         </div>
         <footer className="dialog-foot">
           <button type="button" className="btn btn--ghost" onClick={onClose}>
-            取消
+            {t('pair.dialog.actions.cancel')}
           </button>
           <button
             type="button"
@@ -335,7 +339,7 @@ export function PairDialog({
               void submit();
             }}
           >
-            提交
+            {t('pair.dialog.actions.submit')}
           </button>
         </footer>
       </div>

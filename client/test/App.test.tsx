@@ -3,6 +3,7 @@
 // secure-store 用 mock 模拟"已配对"/"未配对"两种启动条件。
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import i18n from '@/i18n/index.js';
 
 // vi.mock 会被 hoisted，工厂里用到的引用必须用 vi.hoisted。
 const { mockLoad, mockClear } = vi.hoisted(() => ({
@@ -68,7 +69,7 @@ describe('App 状态机', () => {
   it('初始 render → Settings 可见', async () => {
     render(<App />);
     // Settings 的 URL 输入框始终存在；初始 status=PAIRING，Settings 显示"正在测试…"。
-    expect(screen.getByLabelText('Gateway URL')).toBeInTheDocument();
+    expect(screen.getByLabelText(i18n.t('settings.urlAria'))).toBeInTheDocument();
     // flush loadSecureConfig promise，避免 act 警告。
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
@@ -80,7 +81,7 @@ describe('App 状态机', () => {
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
-    expect(await screen.findByText(/配对成功/)).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('settings.status.HEALTHY'))).toBeInTheDocument();
   });
 
   it('fetch 成功 + version out of range → PAIRED + MismatchBanner 显示', async () => {
@@ -92,8 +93,8 @@ describe('App 状态机', () => {
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
-    expect(await screen.findByText(/版本不匹配/)).toBeInTheDocument();
-    expect(screen.getByText(/Gateway v1\.0\.0 超出/)).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('settings.status.MISMATCH'))).toBeInTheDocument();
+    expect(screen.getByText(/^Gateway v1\.0\.0 超出/)).toBeInTheDocument();
   });
 
   it('点 banner 关闭按钮 → banner 消失，session 内不重亮', async () => {
@@ -105,15 +106,15 @@ describe('App 状态机', () => {
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
-    fireEvent.click(screen.getByRole('button', { name: /关闭/ }));
-    expect(screen.queryByText(/Gateway v1\.0\.0 超出/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('mismatch.dismiss') }));
+    expect(screen.queryByText(/^Gateway v1\.0\.0 超出/)).toBeNull();
 
     // 推进 5 min fake timer + 触发 heartbeat
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
     });
     // banner 仍不显示
-    expect(screen.queryByText(/Gateway v1\.0\.0 超出/)).toBeNull();
+    expect(screen.queryByText(/^Gateway v1\.0\.0 超出/)).toBeNull();
   });
 
   it('fetch throw → NEED_REPAIR（Settings 显示"连接失败" + PairBanner 显示）', async () => {
@@ -127,9 +128,9 @@ describe('App 状态机', () => {
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
-    expect(await screen.findByText(/连接失败/)).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('settings.status.PAIR_FAILED'))).toBeInTheDocument();
     // NEED_REPAIR 同时点亮 PairBanner，文案含"重新配对"。
-    expect(screen.getByText(/重新配对/)).toBeInTheDocument();
+    expect(screen.getByText(i18n.t('pair.banner.needRepair.kicker'))).toBeInTheDocument();
   });
 
   it('secure-store 无 config → 直接 NEED_PAIR + PairBanner 显示"尚未配对"', async () => {
@@ -138,7 +139,7 @@ describe('App 状态机', () => {
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
-    expect(await screen.findByText(/尚未配对/)).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('pair.banner.needPair.message'))).toBeInTheDocument();
   });
 
   it('PairBanner 点"去配对"按钮 → PairDialog 弹出', async () => {
@@ -147,7 +148,9 @@ describe('App 状态机', () => {
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
-    fireEvent.click(await screen.findByRole('button', { name: '去配对' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: i18n.t('pair.banner.actions.goPair') }),
+    );
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
@@ -157,12 +160,12 @@ describe('App 状态机', () => {
       await vi.runOnlyPendingTimersAsync();
     });
     // 先确认 PAIRED
-    expect(await screen.findByText(/配对成功/)).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('settings.status.HEALTHY'))).toBeInTheDocument();
     // 模拟业务 401 派发
     await act(async () => {
       window.dispatchEvent(new CustomEvent('my-ai:unauthorized'));
     });
-    expect(await screen.findByText(/重新配对/)).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('pair.banner.needRepair.kicker'))).toBeInTheDocument();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
@@ -173,19 +176,19 @@ describe('App 状态机', () => {
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
-    expect(await screen.findByText(/配对成功/)).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('settings.status.HEALTHY'))).toBeInTheDocument();
     const callsBefore = fetchMock.mock.calls.length;
 
-    fireEvent.click(screen.getByRole('button', { name: '测试' }));
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('settings.test') }));
     // 立刻反馈 PAIRING
-    expect(await screen.findByText(/正在测试/)).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('settings.status.PAIRING'))).toBeInTheDocument();
 
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
     expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
     // 仍 HEALTHY
-    expect(await screen.findByText(/配对成功/)).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('settings.status.HEALTHY'))).toBeInTheDocument();
   });
 
   it('未配对时点 Settings "测试" → 直接弹 PairDialog（不开 Banner 那条路）', async () => {
@@ -194,9 +197,9 @@ describe('App 状态机', () => {
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
-    expect(await screen.findByText(/尚未配对/)).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t('pair.banner.needPair.message'))).toBeInTheDocument();
     // PairBanner 不会自动弹 dialog（需要点"去配对"），点 Settings 的"测试"应直接弹
-    fireEvent.click(screen.getByRole('button', { name: '测试' }));
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('settings.test') }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 });
