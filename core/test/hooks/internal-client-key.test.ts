@@ -36,4 +36,15 @@ describe('X-Internal-Client-Key hook', () => {
     expect(res.json()).toEqual({ data: null, code: 401, message: 'unauthorized' });
     await app.close();
   });
+
+  it('/health 是 public path → 缺 header 也 200', async () => {
+    const app = Fastify();
+    await app.register(internalClientKeyHook);
+    app.get('/health', async () => ({ ok: true }));
+
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+    await app.close();
+  });
 });
