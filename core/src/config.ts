@@ -7,11 +7,11 @@ const Schema = z.object({
   HOST: z.string().default('127.0.0.1'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   CORS_ORIGINS: z.string().default('http://localhost:5173,tauri://localhost'),
-  // LLM 抽象层选 provider；后续接 OpenAI/Anthropic 兼容协议时按需扩展。
-  LLM_PROVIDER: z.enum(['mock', 'openai-compatible']).default('mock'),
-  LLM_BASE_URL: z.string().url().optional(),
+  // v6.1：LLM 配置下沉到 agents 表（base_url / model / max_tokens / llm_provider）。
+  // 仅保留 LLM_API_KEY（env 全局共享，agent 行不存 key）。
   LLM_API_KEY: z.string().optional(),
-  LLM_MODEL: z.string().default('gpt-4o-mini'),
+  // SQLite 文件路径（相对路径相对 cwd）。默认 ./core.db；测试可用 :memory:。
+  CORE_DB_PATH: z.string().default('./core.db'),
 });
 
 export type Config = z.infer<typeof Schema>;
