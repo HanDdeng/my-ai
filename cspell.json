@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell/cspell.schema.json",
+  "version": "0.2",
+  "language": "en,zh-CN",
+  "words": [
+    "ollama",
+    "qwen",
+    "xhigh",
+    "tongyi",
+    "reasoningEffort",
+    "maxCompletionTokens",
+    "Llms",
+    "anthropic",
+    "middleware",
+    "auto",
+    "Lu",
+    "axios",
+    "tsx"
+  ],
+  "ignoreRegExpList": ["/[A-Z]{2,}/g", "/[a-z]+[A-Z][a-zA-Z]*/g"],
+  "ignorePaths": ["node_modules", "dist", ".integration-logs", "**/*.test.ts", "**/*.test.tsx"]
+}
