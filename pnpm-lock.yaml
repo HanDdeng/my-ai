@@ -137,6 +137,9 @@ importers:
       semver:
         specifier: 'catalog:'
         version: 7.8.0
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2.1.0
