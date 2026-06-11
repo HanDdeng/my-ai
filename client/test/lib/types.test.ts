@@ -14,7 +14,7 @@ import type {
 } from '@/lib/types.js';
 
 describe('client/src/lib/types', () => {
-  it('Agent 形状：13 字段（含 capabilities 数组 + v6.3.1 contextWindow）', () => {
+  it('Agent 形状：15 字段（含 capabilities 数组 + v6.3.1 contextWindow + v6.3.2 reasoningEffort）', () => {
     const a: Agent = {
       id: 'a1',
       name: 'Echo',
@@ -22,16 +22,19 @@ describe('client/src/lib/types', () => {
       llmProvider: 'openai-compatible',
       baseUrl: 'http://localhost:11434/v1',
       model: 'qwen2.5:7b',
-      maxTokens: null,
+      // v6.3.2: 改用 maxCompletionTokens（OpenAI 新 SDK 字段对齐）。
+      maxCompletionTokens: null,
       // v6.3.1: 新增 contextWindow（云端模型需要区分 per-response maxTokens 与总 context window）
       contextWindow: null,
+      // v6.3.2: 新增 reasoningEffort（OpenAI o1/o3 思考强度）。
+      reasoningEffort: 'none',
       enabledApi: false,
       systemPrompt: '',
       capabilities: ['chat', 'tool'],
       createdAt: '2026-06-11T00:00:00.000Z',
       updatedAt: '2026-06-11T00:00:00.000Z',
     };
-    expect(Object.keys(a)).toHaveLength(13);
+    expect(Object.keys(a)).toHaveLength(14);
     expect(a.llmProvider).toBe('openai-compatible');
   });
 
@@ -65,9 +68,12 @@ describe('client/src/lib/types', () => {
       llmProvider: 'openai-compatible',
       baseUrl: 'http://x',
       model: 'qwen',
-      maxTokens: null,
+      // v6.3.2: 改用 maxCompletionTokens。
+      maxCompletionTokens: null,
       // v6.3.1: 新增 contextWindow
       contextWindow: null,
+      // v6.3.2: 新增 reasoningEffort。
+      reasoningEffort: 'none',
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],

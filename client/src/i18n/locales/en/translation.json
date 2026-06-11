@@ -156,13 +156,25 @@
         "required": "Required",
         "placeholder": "qwen3.5:4b / gpt-4o-mini / qwen2.5:7b"
       },
-      "maxTokens": {
-        "label": "Max Tokens (per response)",
-        "placeholder": "Empty = unlimited; 4000+ recommended for thinking models"
+      "maxCompletionTokens": {
+        "label": "Max Completion Tokens",
+        "placeholder": "Default 4096; range 1..32000"
       },
       "contextWindow": {
         "label": "Context Window",
         "placeholder": "e.g. 65536 (64K); empty = model default"
+      },
+      "reasoningEffort": {
+        "label": "Reasoning Effort",
+        "options": {
+          "none": "No reasoning (none)",
+          "minimal": "Minimal reasoning",
+          "low": "Low reasoning",
+          "medium": "Medium reasoning",
+          "high": "High reasoning",
+          "xhigh": "Maximum reasoning (xhigh)"
+        },
+        "hint": "For OpenAI o1 / o3 / compatible SDKs; ignored by other providers"
       },
       "enabledApi": { "label": "Enabled API", "hint": "Reserved for v6.1; no current behavior" },
       "systemPrompt": {

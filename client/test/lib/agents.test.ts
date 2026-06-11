@@ -42,9 +42,12 @@ describe('client/src/lib/agents', () => {
       llmProvider: 'openai-compatible',
       baseUrl: 'http://x',
       model: 'qwen',
-      maxTokens: null,
+      // v6.3.2: 改用 maxCompletionTokens。
+      maxCompletionTokens: null,
       // v6.3.1: 新增 contextWindow
       contextWindow: null,
+      // v6.3.2: 新增 reasoningEffort。
+      reasoningEffort: 'none',
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],

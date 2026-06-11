@@ -10,6 +10,7 @@ import { Office, type OfficeDialogKey } from '@/components/Office.js';
 import { AgentFormDialog } from '@/components/AgentFormDialog.js';
 import { ChatDialog } from '@/components/ChatDialog.js';
 import { ApiError } from '@/lib/api.js';
+import type { Agent } from '@/lib/types.js';
 
 vi.mock('@/lib/agents.js', () => ({
   listAgents: vi.fn(),
@@ -109,14 +110,16 @@ describe('Integration: office flow', () => {
   });
 
   it('happy path: 空 → 新建 → 点弹窗 → 发消息 → 收回复', async () => {
-    const created = {
+    const created: Agent = {
       id: 'a1',
       name: 'Echo',
       description: '',
-      llmProvider: 'openai-compatible' as const,
+      llmProvider: 'openai-compatible',
       baseUrl: 'http://x',
       model: 'qwen',
-      maxTokens: null,
+      maxCompletionTokens: null,
+      // v6.3.2: 新增 reasoningEffort 字段。
+      reasoningEffort: 'none',
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
@@ -167,14 +170,16 @@ describe('Integration: office flow', () => {
   });
 
   it('切 agent = 新 session（独立 chat）', async () => {
-    const a1 = {
+    const a1: Agent = {
       id: 'a1',
       name: 'Echo',
       description: '',
-      llmProvider: 'openai-compatible' as const,
+      llmProvider: 'openai-compatible',
       baseUrl: 'http://x',
       model: 'qwen',
-      maxTokens: null,
+      maxCompletionTokens: null,
+      // v6.3.2: 新增 reasoningEffort 字段。
+      reasoningEffort: 'none',
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
@@ -182,14 +187,16 @@ describe('Integration: office flow', () => {
       createdAt: 't',
       updatedAt: 't',
     };
-    const a2 = {
+    const a2: Agent = {
       id: 'a2',
       name: 'Bot',
       description: '',
-      llmProvider: 'openai-compatible' as const,
+      llmProvider: 'openai-compatible',
       baseUrl: 'http://x',
       model: 'qwen',
-      maxTokens: null,
+      maxCompletionTokens: null,
+      // v6.3.2: 新增 reasoningEffort 字段。
+      reasoningEffort: 'none',
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
@@ -250,14 +257,16 @@ describe('Integration: office flow', () => {
   });
 
   it('edit 端到端: 点 ✎ → 加载数据 → 改名字 → 保存 → listAgents 重拉', async () => {
-    const original = {
+    const original: Agent = {
       id: 'a1',
       name: 'Echo',
       description: 'old',
-      llmProvider: 'openai-compatible' as const,
+      llmProvider: 'openai-compatible',
       baseUrl: 'http://x',
       model: 'qwen',
-      maxTokens: null,
+      maxCompletionTokens: null,
+      // v6.3.2: 新增 reasoningEffort 字段。
+      reasoningEffort: 'none',
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
@@ -299,14 +308,16 @@ describe('Integration: office flow', () => {
   });
 
   it('delete 端到端: 点 ✎ → form 内点删除 → ConfirmDialog → 确认 → deleteAgent + onDeleted', async () => {
-    const a1 = {
+    const a1: Agent = {
       id: 'a1',
       name: 'Echo',
       description: '',
-      llmProvider: 'openai-compatible' as const,
+      llmProvider: 'openai-compatible',
       baseUrl: 'http://x',
       model: 'qwen',
-      maxTokens: null,
+      maxCompletionTokens: null,
+      // v6.3.2: 新增 reasoningEffort 字段。
+      reasoningEffort: 'none',
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
@@ -345,14 +356,16 @@ describe('Integration: office flow', () => {
   });
 
   it('ChatDialog 中 postMessage 404 → 显示错误 + 不自动调 onClose', async () => {
-    const a1 = {
+    const a1: Agent = {
       id: 'a1',
       name: 'Echo',
       description: '',
-      llmProvider: 'openai-compatible' as const,
+      llmProvider: 'openai-compatible',
       baseUrl: 'http://x',
       model: 'qwen',
-      maxTokens: null,
+      maxCompletionTokens: null,
+      // v6.3.2: 新增 reasoningEffort 字段。
+      reasoningEffort: 'none',
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',

@@ -153,13 +153,25 @@
         "required": "必填",
         "placeholder": "qwen3.5:4b / gpt-4o-mini / qwen2.5:7b"
       },
-      "maxTokens": {
-        "label": "单次回复 Tokens",
-        "placeholder": "留空 = 不限；推荐 4000+ 给思考型模型"
+      "maxCompletionTokens": {
+        "label": "单次回复 Tokens（最大输出）",
+        "placeholder": "默认 4096；范围 1..32000"
       },
       "contextWindow": {
         "label": "上下文窗口",
         "placeholder": "例如 65536 (64K)；留空 = 用模型默认"
+      },
+      "reasoningEffort": {
+        "label": "思考强度",
+        "options": {
+          "none": "不思考（none）",
+          "minimal": "极少思考（minimal）",
+          "low": "轻度思考（low）",
+          "medium": "中度思考（medium）",
+          "high": "深度思考（high）",
+          "xhigh": "极深思考（xhigh）"
+        },
+        "hint": "OpenAI o1 / o3 / 兼容 SDK 用；其他模型 provider 静默忽略"
       },
       "enabledApi": { "label": "启用 API", "hint": "v6.1 预留；不影响当前行为" },
       "systemPrompt": {

@@ -50,8 +50,11 @@ describe('<AgentFormDialog>', () => {
       llmProvider: 'openai-compatible',
       baseUrl: 'http://x',
       model: 'qwen',
-      maxTokens: 2048,
+      // v6.3.2: 改用 maxCompletionTokens。
+      maxCompletionTokens: 2048,
       contextWindow: 65536,
+      // v6.3.2: 新增 reasoningEffort。
+      reasoningEffort: 'medium',
       enabledApi: false,
       systemPrompt: 'sys',
       capabilities: [],
@@ -71,9 +74,12 @@ describe('<AgentFormDialog>', () => {
     );
     await waitFor(() => expect(screen.getByDisplayValue('Echo')).toBeInTheDocument());
     expect(screen.getByDisplayValue('http://x')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('2048')).toBeInTheDocument();
+    // v6.3.2: 字段名改了 → 用 getByLabelText 定位（label "单次回复 Tokens（最大输出）"）。
+    expect(screen.getByLabelText('单次回复 Tokens（最大输出）')).toHaveValue(2048);
     // v6.3.1: context window 字段也回填
     expect(screen.getByDisplayValue('65536')).toBeInTheDocument();
+    // v6.3.2: reasoningEffort 字段回填（中度思考（medium））。
+    expect(screen.getByLabelText('思考强度')).toHaveValue('medium');
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '删除' })).toBeInTheDocument();
   });
@@ -93,7 +99,7 @@ describe('<AgentFormDialog>', () => {
     expect(agentsLib.createAgent).not.toHaveBeenCalled();
   });
 
-  it('提交成功 → onSaved（body 含 contextWindow=null）', async () => {
+  it('v6.3.2: 提交成功 → onSaved（body 含 maxCompletionTokens=4096 + contextWindow=null + reasoningEffort="none"）', async () => {
     vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
     const onSaved = vi.fn();
     render(
@@ -110,9 +116,14 @@ describe('<AgentFormDialog>', () => {
     fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
-    // v6.3.1: 提交 body 应含 contextWindow 字段
     const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
-    expect(call[2]).toHaveProperty('contextWindow', null);
+    const body = call[2] as Record<string, unknown>;
+    // v6.3.2: 默认 4096（用户偏好，不再是 null）
+    expect(body).toHaveProperty('maxCompletionTokens', 4096);
+    // v6.3.1: 提交 body 应含 contextWindow 字段
+    expect(body).toHaveProperty('contextWindow', null);
+    // v6.3.2: reasoningEffort 默认 'none'
+    expect(body).toHaveProperty('reasoningEffort', 'none');
   });
 
   it('v6.3.1: 填写 contextWindow → 提交 body 包含该值', async () => {
@@ -134,6 +145,71 @@ describe('<AgentFormDialog>', () => {
     await waitFor(() => expect(agentsLib.createAgent).toHaveBeenCalled());
     const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
     expect(call[2]).toHaveProperty('contextWindow', 131072);
+  });
+
+  it('v6.3.2: reasoningEffort <select> 提供 6 选项 + 选 "high" → body 含 reasoningEffort=high', async () => {
+    vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
+    render(
+      <AgentFormDialog
+        mode="create"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    // 6 个 <option> 都应存在
+    const select = screen.getByLabelText('思考强度') as HTMLSelectElement;
+    const optionValues = Array.from(select.options).map(o => o.value);
+    expect(optionValues).toEqual(['none', 'minimal', 'low', 'medium', 'high', 'xhigh']);
+    // 选 high
+    fireEvent.change(select, { target: { value: 'high' } });
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'New' } });
+    fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'o1' } });
+    fireEvent.click(screen.getByRole('button', { name: '创建' }));
+    await waitFor(() => expect(agentsLib.createAgent).toHaveBeenCalled());
+    const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
+    expect(call[2]).toHaveProperty('reasoningEffort', 'high');
+  });
+
+  it('v6.3.2: maxCompletionTokens 默认值 4096（不是空 / 不是 null）', () => {
+    render(
+      <AgentFormDialog
+        mode="create"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    const maxCompletionInput = screen.getByLabelText(
+      '单次回复 Tokens（最大输出）',
+    ) as HTMLInputElement;
+    expect(maxCompletionInput.value).toBe('4096');
+  });
+
+  it('v6.3.2: 修改 maxCompletionTokens → 提交 body 透传', async () => {
+    vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
+    render(
+      <AgentFormDialog
+        mode="create"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'New' } });
+    fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
+    fireEvent.change(screen.getByLabelText('单次回复 Tokens（最大输出）'), {
+      target: { value: '8192' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '创建' }));
+    await waitFor(() => expect(agentsLib.createAgent).toHaveBeenCalled());
+    const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
+    expect(call[2]).toHaveProperty('maxCompletionTokens', 8192);
   });
 
   it('409 agent_name_conflict → name 字段红字（不调 onSaved）', async () => {
@@ -164,8 +240,11 @@ describe('<AgentFormDialog>', () => {
       llmProvider: 'openai-compatible',
       baseUrl: 'http://x',
       model: 'qwen',
-      maxTokens: null,
+      // v6.3.2: 改用 maxCompletionTokens。
+      maxCompletionTokens: null,
       contextWindow: null,
+      // v6.3.2: 新增 reasoningEffort。
+      reasoningEffort: 'none',
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],

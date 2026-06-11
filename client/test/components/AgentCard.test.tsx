@@ -11,7 +11,9 @@ const agent: Agent = {
   llmProvider: 'openai-compatible',
   baseUrl: 'http://x',
   model: 'qwen',
-  maxTokens: null,
+  maxCompletionTokens: null,
+  // v6.3.2: 新增 reasoningEffort 字段。
+  reasoningEffort: 'none',
   contextWindow: null,
   enabledApi: false,
   systemPrompt: '',

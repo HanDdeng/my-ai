@@ -1,6 +1,9 @@
 // 新建/编辑 agent 弹窗：8 字段（capabilities 隐藏）+ zod 客户端校验 + 提交 + 嵌套 ConfirmDialog 删除。
 // mode=create/edit；edit 模式 getAgent 加载数据；提交 createAgent/updateAgent。
 // v6.3.1: 新增 contextWindow 字段（位于 maxTokens 下方）。
+// v6.3.2: maxTokens 字段名改为 maxCompletionTokens（OpenAI 新 SDK 字段对齐）；
+//   新增 reasoningEffort <select> 字段（6 选项；默认 'none'）。
+//   maxCompletionTokens 默认 4096（不再用 null；用户偏好）。
 import { useState, useEffect, useRef, type ReactElement, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -10,28 +13,41 @@ import { createAgent, getAgent, updateAgent, deleteAgent } from '@/lib/agents.js
 import { ConfirmDialog } from '@/components/ConfirmDialog.js';
 import type { Agent } from '@/lib/types.js';
 
+// v6.3.2: 6 选项 enum；其他值 zod 拒收。
+const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const;
+type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+
 const FormSchema = z.object({
   name: z.string().min(1, 'nameRequired').max(64, 'nameLength'),
   description: z.string().max(256).default(''),
   baseUrl: z.string().min(1, 'baseUrlRequired').max(512),
   model: z.string().min(1, 'modelRequired').max(128),
-  maxTokens: z.union([z.literal(''), z.coerce.number().int().min(1).max(32000)]).default(''),
+  // v6.3.2: 改用 maxCompletionTokens 字段名（OpenAI 新 SDK 对齐）；表单层接受 number；
+  //   '' 表示"用 core 默认 4096"——提单时 '' 变 null。
+  maxCompletionTokens: z
+    .union([z.literal(''), z.coerce.number().int().min(1).max(32000)])
+    .default(''),
   // v6.3.1: context window 上限 2_000_000（与 core 端 zod 对齐）。
   contextWindow: z
     .union([z.literal(''), z.coerce.number().int().min(1).max(2_000_000)])
     .default(''),
+  // v6.3.2: 新增 reasoningEffort（6 选项；默认 'none'）。
+  reasoningEffort: z.enum(REASONING_EFFORTS).default('none'),
   enabledApi: z.boolean().default(false),
   systemPrompt: z.string().max(8192).default(''),
 });
 
+// v6.3.2: maxCompletionTokens 默认 4096（用户偏好；不再用 null）。
+//   reasoningEffort 默认 'none'（不思考）。
 const EMPTY: Omit<Agent, 'id' | 'createdAt' | 'updatedAt' | 'capabilities'> = {
   name: '',
   description: '',
   llmProvider: 'openai-compatible',
   baseUrl: '',
   model: '',
-  maxTokens: null,
+  maxCompletionTokens: 4096,
   contextWindow: null,
+  reasoningEffort: 'none',
   enabledApi: false,
   systemPrompt: '',
 };
@@ -77,9 +93,12 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
           llmProvider: a.llmProvider,
           baseUrl: a.baseUrl,
           model: a.model,
-          maxTokens: a.maxTokens,
+          // v6.3.2: 后端若尚未升级到 v6.3.2，a.maxCompletionTokens 可能为 undefined；兜底 4096。
+          maxCompletionTokens: a.maxCompletionTokens ?? 4096,
           // v6.3.1: 后端若尚未升级到 schema_version=2，a.contextWindow 仍可能为 undefined；兜底 null。
           contextWindow: a.contextWindow ?? null,
+          // v6.3.2: 同上兜底；老 DB 返 undefined 时退到 'none'。
+          reasoningEffort: a.reasoningEffort ?? 'none',
           enabledApi: a.enabledApi,
           systemPrompt: a.systemPrompt,
         });
@@ -108,10 +127,11 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
     e.preventDefault();
     setNameConflict(false);
     setSubmitError(null);
-    // maxTokens / contextWindow 在 UI 层用 null 表示"留空"；提交前转成 '' 让 zod 接受。
+    // maxCompletionTokens / contextWindow 在 UI 层用 null 表示"留空"（仅 contextWindow 走 null）；
+    //   提交前转成 '' 让 zod 接受。
     const candidate = {
       ...form,
-      maxTokens: form.maxTokens === null ? '' : form.maxTokens,
+      maxCompletionTokens: form.maxCompletionTokens === null ? '' : form.maxCompletionTokens,
       contextWindow: form.contextWindow === null ? '' : form.contextWindow,
     };
     const parsed = FormSchema.safeParse(candidate);
@@ -125,9 +145,15 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
         ...parsed.data,
         llmProvider: 'openai-compatible' as const,
         capabilities: [] as string[],
-        maxTokens: parsed.data.maxTokens === '' ? null : (parsed.data.maxTokens as number),
+        // v6.3.2: '' 退到 null（core 端 4096 兜底）；数字直传。
+        maxCompletionTokens:
+          parsed.data.maxCompletionTokens === ''
+            ? null
+            : (parsed.data.maxCompletionTokens as number),
         contextWindow:
           parsed.data.contextWindow === '' ? null : (parsed.data.contextWindow as number),
+        // v6.3.2: reasoningEffort 落 body（默认 'none'）。
+        reasoningEffort: parsed.data.reasoningEffort,
       };
       if (mode === 'create') {
         await createAgent(gatewayUrl, clientKey, body);
@@ -321,21 +347,24 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
                       borderRadius: 4,
                     }}
                   />
+                  {/* v6.3.2: maxCompletionTokens 字段名（OpenAI 新 SDK 对齐）+ 默认 4096 */}
                   <input
                     type="number"
                     className="input"
-                    value={form.maxTokens === null ? '' : String(form.maxTokens)}
+                    value={
+                      form.maxCompletionTokens === null ? '' : String(form.maxCompletionTokens)
+                    }
                     onChange={e =>
                       setForm({
                         ...form,
-                        maxTokens: e.target.value === '' ? null : Number(e.target.value),
+                        maxCompletionTokens: e.target.value === '' ? 4096 : Number(e.target.value),
                       })
                     }
-                    placeholder={t('agentForm.field.maxTokens.placeholder')}
+                    placeholder={t('agentForm.field.maxCompletionTokens.placeholder')}
                     min={1}
                     max={32000}
                     disabled={submitting}
-                    aria-label={t('agentForm.field.maxTokens.label')}
+                    aria-label={t('agentForm.field.maxCompletionTokens.label')}
                     style={{
                       width: '100%',
                       padding: 8,
@@ -370,6 +399,38 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
                       borderRadius: 4,
                     }}
                   />
+                  {/* v6.3.2: reasoningEffort <select>（OpenAI o1/o3 思考强度；其他 provider 静默忽略） */}
+                  <div>
+                    <select
+                      className="input"
+                      value={form.reasoningEffort ?? 'none'}
+                      onChange={e =>
+                        setForm({
+                          ...form,
+                          reasoningEffort: e.target.value as ReasoningEffort,
+                        })
+                      }
+                      disabled={submitting}
+                      aria-label={t('agentForm.field.reasoningEffort.label')}
+                      style={{
+                        width: '100%',
+                        padding: 8,
+                        background: 'var(--panel-bg)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text)',
+                        borderRadius: 4,
+                      }}
+                    >
+                      {REASONING_EFFORTS.map(opt => (
+                        <option key={opt} value={opt}>
+                          {t(`agentForm.field.reasoningEffort.options.${opt}`)}
+                        </option>
+                      ))}
+                    </select>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                      {t('agentForm.field.reasoningEffort.hint')}
+                    </div>
+                  </div>
                 </div>
               </fieldset>
               <div>
