@@ -109,6 +109,49 @@ describe('routes /v1/agents', () => {
       expect(res.json().data.contextWindow).toBeNull();
     });
 
+    it('v6.3.2: 不传 reasoningEffort → 默认 "none" 落表 + 回显', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/agents',
+        payload: { id: 'a-5', name: 'NoEffort', baseUrl: 'http://x/v1', model: 'm' },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data.reasoningEffort).toBe('none');
+      expect(app.agents.get('a-5')?.reasoning_effort).toBe('none');
+    });
+
+    it('v6.3.2: 传 reasoningEffort = "high" → 持久化 + 回显', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/agents',
+        payload: {
+          id: 'a-6',
+          name: 'HighEffort',
+          baseUrl: 'http://x/v1',
+          model: 'o1',
+          reasoningEffort: 'high',
+        },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data.reasoningEffort).toBe('high');
+      expect(app.agents.get('a-6')?.reasoning_effort).toBe('high');
+    });
+
+    it('v6.3.2: reasoningEffort 越界值（"bogus"）→ 400', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/agents',
+        payload: {
+          id: 'a-7',
+          name: 'BadEffort',
+          baseUrl: 'http://x/v1',
+          model: 'm',
+          reasoningEffort: 'bogus',
+        },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
     it('缺必填字段 → 400 invalid_body', async () => {
       const res = await app.inject({
         method: 'POST',

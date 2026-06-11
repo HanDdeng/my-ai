@@ -3,7 +3,7 @@
 // 不依赖 core/src/agent/types.ts（已删）；返回类型内联定义。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { AgentsDAO } from '../db/agents.js';
+import { type AgentsDAO } from '../db/agents.js';
 import { createLLMClient } from '../llm/index.js';
 import { LLMUpstreamError } from '../llm/errors.js';
 import { HttpError } from '../errors.js';
@@ -20,25 +20,37 @@ export async function chatRoutes(app: FastifyInstance) {
 
   app.post('/v1/chat', async req => {
     const parsed = ChatBody.safeParse(req.body);
-    if (!parsed.success) throw new HttpError(400, 'invalid_body');
+    if (!parsed.success) {
+      throw new HttpError(400, 'invalid_body');
+    }
 
     const agent = agentsDao.get(parsed.data.agentId);
-    if (!agent) throw new HttpError(404, 'agent_not_found');
+    if (!agent) {
+      throw new HttpError(404, 'agent_not_found');
+    }
 
     const llm = createLLMClient(agent.llm_provider, {
       baseUrl: agent.base_url,
       apiKey: cfg.LLM_API_KEY,
       model: agent.model,
       maxTokens: agent.max_tokens ?? undefined,
+      // v6.3.2: 透传 reasoningEffort（默认 'none'，即不思考；OpenAI o1/o3 用）。
+      reasoningEffort: agent.reasoning_effort ?? 'none',
     });
 
     const messages = [];
-    if (agent.system_prompt) messages.push({ role: 'system' as const, content: agent.system_prompt });
+    if (agent.system_prompt) {
+      messages.push({ role: 'system' as const, content: agent.system_prompt });
+    }
     messages.push({ role: 'user' as const, content: parsed.data.content });
 
     let reply2;
     try {
-      reply2 = await llm.chat({ model: agent.model, messages, maxTokens: agent.max_tokens ?? undefined });
+      reply2 = await llm.chat({
+        model: agent.model,
+        messages,
+        maxTokens: agent.max_tokens ?? undefined,
+      });
     } catch (e) {
       if (e instanceof LLMUpstreamError) {
         app.log.error({ err: e }, 'LLM upstream error');

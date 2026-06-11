@@ -59,12 +59,14 @@ export async function messageRoutes(app: FastifyInstance) {
 
     const history = messagesDao.listBySession(sid);
 
-    // 构造 LLM 客户端（每次新实例；v6.1 不缓存）
+    // 构造 LLM 客户端（每次新实例；v6.1 不缓存）。
+    // v6.3.2: 透传 reasoningEffort（默认 'none'，即不思考；OpenAI o1/o3 用）。
     const llm = createLLMClient(agent.llm_provider, {
       baseUrl: agent.base_url,
       apiKey: cfg.LLM_API_KEY,
       model: agent.model,
       maxTokens: agent.max_tokens ?? undefined,
+      reasoningEffort: agent.reasoning_effort ?? 'none',
     });
 
     const messages = [];

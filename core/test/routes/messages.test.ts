@@ -221,5 +221,79 @@ describe('routes /v1/sessions/:id/messages', () => {
       // 关键断言：contextWindow 不进协议层
       expect(reqBody.num_ctx).toBeUndefined();
     });
+
+    it('v6.3.2: 调 LLM 时 reasoning_effort 写入 body', async () => {
+      await seedAgentAndSession();
+      const agentsDao = (app as unknown as { agents: AgentsDAO }).agents;
+      agentsDao.update('a-1', {
+        reasoning_effort: 'high',
+        updated_at: new Date().toISOString(),
+      });
+
+      const fetchMock = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/sessions/s-1/messages',
+        headers: { 'x-internal-client-key': 'ck' },
+        payload: { id: randomUUID(), content: 'hi' },
+      });
+      expect(res.statusCode).toBe(200);
+      const [, init] = fetchMock.mock.calls[0]!;
+      const reqBody = JSON.parse((init as RequestInit).body as string);
+      expect(reqBody.reasoning_effort).toBe('high');
+    });
+
+    it('v6.3.2: reasoning_effort 未设 → 走 default "none" 写入 body', async () => {
+      await seedAgentAndSession();
+      // a-1 初始 reasoning_effort = 'none'（默认）
+
+      const fetchMock = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await app.inject({
+        method: 'POST',
+        url: '/v1/sessions/s-1/messages',
+        headers: { 'x-internal-client-key': 'ck' },
+        payload: { id: randomUUID(), content: 'hi' },
+      });
+      const [, init] = fetchMock.mock.calls[0]!;
+      const reqBody = JSON.parse((init as RequestInit).body as string);
+      expect(reqBody.reasoning_effort).toBe('none');
+    });
+
+    it('v6.3.2: 协议体用新字段名 max_completion_tokens（不是 max_tokens）', async () => {
+      await seedAgentAndSession();
+      // 设 max_tokens
+      const agentsDao = (app as unknown as { agents: AgentsDAO }).agents;
+      agentsDao.update('a-1', {
+        max_tokens: 2048,
+        updated_at: new Date().toISOString(),
+      });
+
+      const fetchMock = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await app.inject({
+        method: 'POST',
+        url: '/v1/sessions/s-1/messages',
+        headers: { 'x-internal-client-key': 'ck' },
+        payload: { id: randomUUID(), content: 'hi' },
+      });
+      const [, init] = fetchMock.mock.calls[0]!;
+      const reqBody = JSON.parse((init as RequestInit).body as string);
+      expect(reqBody.max_completion_tokens).toBe(2048);
+      expect(reqBody.max_tokens).toBeUndefined();
+    });
   });
 });

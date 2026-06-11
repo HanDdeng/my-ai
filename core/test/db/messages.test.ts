@@ -28,6 +28,8 @@ describe('MessagesDAO', () => {
       model: 'qwen2.5:7b',
       max_tokens: null,
       context_window: null,
+      // v6.3.2: 新增 reasoning_effort（OpenAI o1/o3 思考强度；其他 provider 静默忽略）。
+      reasoning_effort: 'none',
       enabled_api: 0,
       system_prompt: '',
       capabilities: '[]',

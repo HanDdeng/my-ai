@@ -2,6 +2,7 @@
 // CASCADE 由 schema.sql 的 ON DELETE CASCADE 约束 + PRAGMA foreign_keys=ON 处理，
 // 路由层不直接调 SessionsDAO。
 // v6.3.1: PATCH body 新增 contextWindow 字段。
+// v6.3.2: PATCH body 新增 reasoningEffort 字段。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type AgentsDAO, type AgentRow } from '../db/agents.js';
@@ -16,6 +17,11 @@ const PatchAgentBody = z
     maxTokens: z.number().int().min(1).max(32000).nullable().optional(),
     // v6.3.1: context window；与 maxTokens（per-response）区分。
     contextWindow: z.number().int().min(1).max(2_000_000).nullable().optional(),
+    // v6.3.2: OpenAI o1/o3 思考强度；其他 provider 静默忽略。
+    reasoningEffort: z
+      .enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh'])
+      .nullable()
+      .optional(),
     enabledApi: z.boolean().optional(),
     systemPrompt: z.string().max(8192).optional(),
     capabilities: z.array(z.string()).optional(),
@@ -32,6 +38,8 @@ function rowToAgent(row: AgentRow) {
     model: row.model,
     maxTokens: row.max_tokens,
     contextWindow: row.context_window,
+    // v6.3.2: 回显 reasoningEffort。
+    reasoningEffort: row.reasoning_effort,
     enabledApi: row.enabled_api === 1,
     systemPrompt: row.system_prompt,
     capabilities: JSON.parse(row.capabilities) as string[],
@@ -82,6 +90,10 @@ export async function agentItemRoutes(app: FastifyInstance) {
     }
     if (parsed.data.contextWindow !== undefined) {
       fields.context_window = parsed.data.contextWindow;
+    }
+    // v6.3.2: reasoningEffort 允许显式 null（清空）；非 null 时落表。
+    if (parsed.data.reasoningEffort !== undefined) {
+      fields.reasoning_effort = parsed.data.reasoningEffort;
     }
     if (parsed.data.enabledApi !== undefined) {
       fields.enabled_api = parsed.data.enabledApi ? 1 : 0;

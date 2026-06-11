@@ -153,4 +153,45 @@ describe('routes /v1/agents/:id', () => {
     });
     expect(res.statusCode).toBe(400);
   });
+
+  it('v6.3.2: PATCH reasoningEffort → 持久化', async () => {
+    await insertEcho();
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/v1/agents/a-1',
+      payload: { reasoningEffort: 'medium' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.reasoningEffort).toBe('medium');
+    const got = (app as unknown as { agents: AgentsDAO }).agents.get('a-1');
+    expect(got?.reasoning_effort).toBe('medium');
+  });
+
+  it('v6.3.2: PATCH reasoningEffort = null 允许（清空）', async () => {
+    await insertEcho();
+    // 先设上
+    await app.inject({
+      method: 'PATCH',
+      url: '/v1/agents/a-1',
+      payload: { reasoningEffort: 'high' },
+    });
+    // 再清空
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/v1/agents/a-1',
+      payload: { reasoningEffort: null },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.reasoningEffort).toBeNull();
+  });
+
+  it('v6.3.2: PATCH reasoningEffort 越界 → 400', async () => {
+    await insertEcho();
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/v1/agents/a-1',
+      payload: { reasoningEffort: 'bogus' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
 });

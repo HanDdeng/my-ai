@@ -1,5 +1,6 @@
-// SQLite 初始化：建 4 张表 + 索引 + 写 schema_version=2。
+// SQLite 初始化：建 4 张表 + 索引 + 写 schema_version=3。
 // v6.3.1: bump 1→2（新增 agents.context_window 字段）。
+// v6.3.2: bump 2→3（新增 agents.reasoning_effort 字段）。
 // 启动时调一次：openDatabase(CORE_DB_PATH) → 拿到 db 实例。
 // 参考 gateway/src/db.ts 的 WAL + foreign_keys PRAGMA 模式。
 import Database from 'better-sqlite3';
@@ -7,8 +8,8 @@ import type { Database as DatabaseType } from 'better-sqlite3';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// v6.1 = 1；v6.3.1 加 context_window → 2。
-const SCHEMA_VERSION = 2;
+// v6.1 = 1；v6.3.1 加 context_window → 2；v6.3.2 加 reasoning_effort → 3。
+const SCHEMA_VERSION = 3;
 
 function loadSchemaSql(): string {
   // schema.sql 与本文件同目录：src/db/schema.sql

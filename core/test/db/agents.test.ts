@@ -27,6 +27,8 @@ describe('AgentsDAO', () => {
     model: 'qwen2.5:7b',
     max_tokens: 2048,
     context_window: 65536,
+    // v6.3.2: 新增 reasoning_effort（OpenAI o1/o3 思考强度；其他 provider 静默忽略）。
+    reasoning_effort: 'none',
     enabled_api: 0,
     system_prompt: '',
     capabilities: '[]',
@@ -76,6 +78,30 @@ describe('AgentsDAO', () => {
   it('context_window 允许为 null（云端模型不传时）', () => {
     dao.insert(sample({ context_window: null }));
     expect(dao.get('a-1')?.context_window).toBeNull();
+  });
+
+  it('v6.3.2: reasoning_effort 落表 + 读回', () => {
+    dao.insert(sample({ reasoning_effort: 'high' }));
+    expect(dao.get('a-1')?.reasoning_effort).toBe('high');
+  });
+
+  it('v6.3.2: reasoning_effort 允许为 null（schema 允许）', () => {
+    dao.insert(sample({ reasoning_effort: null }));
+    expect(dao.get('a-1')?.reasoning_effort).toBeNull();
+  });
+
+  it('v6.3.2: update reasoning_effort → 持久化', () => {
+    dao.insert(sample());
+    dao.update('a-1', {
+      reasoning_effort: 'medium',
+      updated_at: '2026-06-10T01:00:00.000Z',
+    });
+    expect(dao.get('a-1')?.reasoning_effort).toBe('medium');
+  });
+
+  it('v6.3.2: reasoning_effort 越界值（不是 6 选项之一） → 抛 CHECK 约束错', () => {
+    // 走 prepared.stmt，绕过 zod；DB 仍会拒。
+    expect(() => dao.insert(sample({ reasoning_effort: 'bogus' as never }))).toThrow();
   });
 
   it('delete 删行', () => {

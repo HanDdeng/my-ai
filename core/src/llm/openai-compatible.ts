@@ -2,7 +2,11 @@
 // 走任意 OpenAI 兼容协议服务（Ollama / vLLM / LM Studio / 第三方代理 / OpenAI 公司）。
 // baseUrl 必须含版本路径（如 /v1）；调用方拼接 /chat/completions。
 // Node 20+ 内置 fetch，无新依赖。AbortSignal.timeout 60s 上限防挂死。
-// 严格 OpenAI 协议：只发 model / messages / max_tokens / stream，不掺 provider 私有字段。
+// v6.3.2: 改用 OpenAI 新 SDK 字段名：max_completion_tokens（替代 max_tokens）+ reasoning_effort。
+// 老 max_tokens 仍兼容但 OpenAI SDK 0.x 已 deprecated，新 SDK 用 max_completion_tokens。
+// 其他 OpenAI 兼容 provider（vLLM / LM Studio / 第三方代理）可能只支持 max_tokens；
+//   暂优先 max_completion_tokens（OpenAI 官方字段名），后续可加 provider-specific 降级。
+// 严格 OpenAI 协议：只发 model / messages / max_completion_tokens / reasoning_effort / stream，不掺 provider 私有字段。
 import type { ChatRequest, ChatResponse, LLMClient } from './types.js';
 import { LLMUpstreamError } from './errors.js';
 
@@ -10,7 +14,10 @@ export type OpenAICompatibleConfig = {
   baseUrl: string;
   apiKey?: string;
   model: string;
+  // v6.3.2: 新名 max_completion_tokens 字段（但变量名沿用 maxTokens 保持内部一致）。
   maxTokens?: number | undefined;
+  // v6.3.2: OpenAI o1 / o3 专用思考强度；'none' = 不思考；其他 provider 静默忽略该字段。
+  reasoningEffort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | undefined;
 };
 
 export class OpenAICompatibleLLMClient implements LLMClient {
@@ -22,12 +29,18 @@ export class OpenAICompatibleLLMClient implements LLMClient {
     if (this.cfg.apiKey) {
       headers['Authorization'] = `Bearer ${this.cfg.apiKey}`;
     }
-    const body = {
+    // v6.3.2: 优先 req.maxTokens，其次 cfg.maxTokens，最后兜底 4096（OpenAI 新 SDK 默认）。
+    const body: Record<string, unknown> = {
       model: req.model,
       messages: req.messages,
-      max_tokens: req.maxTokens ?? this.cfg.maxTokens,
+      // OpenAI 新 SDK 字段名（替代旧 max_tokens）。GPT-4o / o1 / o3 / 兼容 SDK 全部接受。
+      max_completion_tokens: req.maxTokens ?? this.cfg.maxTokens ?? 4096,
       stream: false,
     };
+    // OpenAI reasoning_effort：o1 / o3 专用；其他模型 provider 静默忽略。'none' 表示不思考。
+    if (this.cfg.reasoningEffort !== undefined) {
+      body.reasoning_effort = this.cfg.reasoningEffort;
+    }
 
     let res: Response;
     try {
