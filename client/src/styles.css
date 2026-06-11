@@ -70,6 +70,12 @@
   --agent-bubble-bg: #2a2a2a;
   --drawer-shadow: -2px 0 12px rgba(0, 0, 0, 0.15);
   --overlay-bg: rgba(0, 0, 0, 0.4);
+  /* v6.3 component-friendly aliases mapping to v5 tokens */
+  --panel-bg: var(--bg-elev);
+  --border: var(--hairline);
+  --text: var(--fg);
+  --accent: var(--signal);
+  --chip-bg: var(--bg-sunk);
 }
 
 /* ----------------------------------------------------------

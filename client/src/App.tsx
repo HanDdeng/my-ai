@@ -245,6 +245,7 @@ function App() {
           clientKey={secureConfig.clientKey}
           refetchKey={officeRefetchKey}
           onOpenDialog={setOfficeDialog}
+          onRefetch={() => setOfficeRefetchKey(k => k + 1)}
         />
       )}
       {officeDialog?.type === 'create-agent' && secureConfig && (

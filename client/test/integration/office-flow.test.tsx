@@ -40,7 +40,13 @@ function OfficeFlow(_props: OfficeFlowProps = {}) {
   const ck = 'ck';
   return (
     <>
-      <Office gatewayUrl={gw} clientKey={ck} refetchKey={refetchKey} onOpenDialog={setDialog} />
+      <Office
+        gatewayUrl={gw}
+        clientKey={ck}
+        refetchKey={refetchKey}
+        onOpenDialog={setDialog}
+        onRefetch={() => setRefetchKey((k: number) => k + 1)}
+      />
       {dialog?.type === 'create-agent' && (
         <AgentFormDialog
           mode="create"

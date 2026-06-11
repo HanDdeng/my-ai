@@ -273,7 +273,7 @@ export function ChatDialog({
               onClick={onRetry}
               style={{ background: '#fff', color: 'var(--accent)' }}
             >
-              重试
+              {t('chat.retry')}
             </button>
           </div>
         )}

@@ -20,7 +20,15 @@ describe('<Office>', () => {
 
   it('初始 render：显示 loading 骨架', () => {
     vi.mocked(agentsLib.listAgents).mockReturnValue(new Promise(() => {})); // 永不 resolve
-    render(<Office gatewayUrl="http://gw" clientKey="ck" refetchKey={0} onOpenDialog={vi.fn()} />);
+    render(
+      <Office
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        refetchKey={0}
+        onOpenDialog={vi.fn()}
+        onRefetch={vi.fn()}
+      />,
+    );
     expect(screen.getByText('加载中…')).toBeInTheDocument();
   });
 
@@ -41,20 +49,44 @@ describe('<Office>', () => {
         updatedAt: 't',
       },
     ]);
-    render(<Office gatewayUrl="http://gw" clientKey="ck" refetchKey={0} onOpenDialog={vi.fn()} />);
+    render(
+      <Office
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        refetchKey={0}
+        onOpenDialog={vi.fn()}
+        onRefetch={vi.fn()}
+      />,
+    );
     await waitFor(() => expect(screen.getByText('Echo')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: '+ 新建 agent' })).toBeInTheDocument();
   });
 
   it('list 返回 [] → 显示 EmptyOffice', async () => {
     vi.mocked(agentsLib.listAgents).mockResolvedValue([]);
-    render(<Office gatewayUrl="http://gw" clientKey="ck" refetchKey={0} onOpenDialog={vi.fn()} />);
+    render(
+      <Office
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        refetchKey={0}
+        onOpenDialog={vi.fn()}
+        onRefetch={vi.fn()}
+      />,
+    );
     await waitFor(() => expect(screen.getByText('尚无 agent')).toBeInTheDocument());
   });
 
   it('listAgents 失败 → 显示错误条 + 重试按钮', async () => {
     vi.mocked(agentsLib.listAgents).mockRejectedValue(new ApiError(500, 'internal_error'));
-    render(<Office gatewayUrl="http://gw" clientKey="ck" refetchKey={0} onOpenDialog={vi.fn()} />);
+    render(
+      <Office
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        refetchKey={0}
+        onOpenDialog={vi.fn()}
+        onRefetch={vi.fn()}
+      />,
+    );
     await waitFor(() =>
       expect(screen.getByText(/^拉取 agent 列表失败：internal_error$/)).toBeInTheDocument(),
     );
@@ -65,7 +97,13 @@ describe('<Office>', () => {
     vi.mocked(agentsLib.listAgents).mockResolvedValue([]);
     const onOpenDialog = vi.fn();
     render(
-      <Office gatewayUrl="http://gw" clientKey="ck" refetchKey={0} onOpenDialog={onOpenDialog} />,
+      <Office
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        refetchKey={0}
+        onOpenDialog={onOpenDialog}
+        onRefetch={vi.fn()}
+      />,
     );
     await waitFor(() => screen.getByText('尚无 agent'));
     fireEvent.click(screen.getByRole('button', { name: '新建 agent' })); // EmptyOffice 的 CTA
@@ -91,7 +129,13 @@ describe('<Office>', () => {
     ]);
     const onOpenDialog = vi.fn();
     render(
-      <Office gatewayUrl="http://gw" clientKey="ck" refetchKey={0} onOpenDialog={onOpenDialog} />,
+      <Office
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        refetchKey={0}
+        onOpenDialog={onOpenDialog}
+        onRefetch={vi.fn()}
+      />,
     );
     await waitFor(() => screen.getByText('Echo'));
     fireEvent.click(screen.getByText('Echo'));
@@ -101,12 +145,41 @@ describe('<Office>', () => {
   it('refetchKey 变化 → 重新调 listAgents', async () => {
     vi.mocked(agentsLib.listAgents).mockResolvedValue([]);
     const { rerender } = render(
-      <Office gatewayUrl="http://gw" clientKey="ck" refetchKey={0} onOpenDialog={vi.fn()} />,
+      <Office
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        refetchKey={0}
+        onOpenDialog={vi.fn()}
+        onRefetch={vi.fn()}
+      />,
     );
     await waitFor(() => expect(agentsLib.listAgents).toHaveBeenCalledTimes(1));
     rerender(
-      <Office gatewayUrl="http://gw" clientKey="ck" refetchKey={1} onOpenDialog={vi.fn()} />,
+      <Office
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        refetchKey={1}
+        onOpenDialog={vi.fn()}
+        onRefetch={vi.fn()}
+      />,
     );
     await waitFor(() => expect(agentsLib.listAgents).toHaveBeenCalledTimes(2));
+  });
+
+  it('点错误条的重试按钮 → onRefetch 调用一次', async () => {
+    vi.mocked(agentsLib.listAgents).mockRejectedValue(new ApiError(500, 'internal_error'));
+    const onRefetch = vi.fn();
+    render(
+      <Office
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        refetchKey={0}
+        onOpenDialog={vi.fn()}
+        onRefetch={onRefetch}
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+    expect(onRefetch).toHaveBeenCalledTimes(1);
   });
 });

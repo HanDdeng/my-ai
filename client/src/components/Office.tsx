@@ -18,6 +18,7 @@ export type OfficeProps = {
   clientKey: string;
   refetchKey: number;
   onOpenDialog: (key: OfficeDialogKey) => void;
+  onRefetch: () => void;
 };
 
 export function Office({
@@ -25,6 +26,7 @@ export function Office({
   clientKey,
   refetchKey,
   onOpenDialog,
+  onRefetch,
 }: OfficeProps): ReactElement {
   const { t } = useTranslation();
   const [state, setState] = useState<{
@@ -97,7 +99,7 @@ export function Office({
           <button
             type="button"
             className="btn"
-            onClick={() => setState(s => ({ ...s, refetchKey: s.agents.length }))}
+            onClick={() => onRefetch()}
             style={{ background: '#fff', color: 'var(--accent)' }}
           >
             {t('office.error.retry')}
