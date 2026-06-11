@@ -55,8 +55,10 @@ export function ChatDialog({
   gatewayUrl,
   clientKey,
   onClose,
-  onAgentDeleted: _onAgentDeleted,
+  onAgentDeleted,
 }: ChatDialogProps): ReactElement {
+  // 当前实现未消费 onAgentDeleted（agent 删除后弹窗会在加载阶段 404 提示用户），保留在 props 以便后续实现错误提示/重试或列表同步
+  void onAgentDeleted;
   const { t } = useTranslation();
   const { isClosing, close, onOverlayClick } = useDialogAnimation(onClose);
   const [agent, setAgent] = useState<Agent | null>(null);
