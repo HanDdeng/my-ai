@@ -1,5 +1,6 @@
 // 新建/编辑 agent 弹窗：8 字段（capabilities 隐藏）+ zod 客户端校验 + 提交 + 嵌套 ConfirmDialog 删除。
 // mode=create/edit；edit 模式 getAgent 加载数据；提交 createAgent/updateAgent。
+// v6.3.1: 新增 contextWindow 字段（位于 maxTokens 下方）。
 import { useState, useEffect, useRef, type ReactElement, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -15,6 +16,10 @@ const FormSchema = z.object({
   baseUrl: z.string().min(1, 'baseUrlRequired').max(512),
   model: z.string().min(1, 'modelRequired').max(128),
   maxTokens: z.union([z.literal(''), z.coerce.number().int().min(1).max(32000)]).default(''),
+  // v6.3.1: context window 上限 2_000_000（与 core 端 zod 对齐）。
+  contextWindow: z
+    .union([z.literal(''), z.coerce.number().int().min(1).max(2_000_000)])
+    .default(''),
   enabledApi: z.boolean().default(false),
   systemPrompt: z.string().max(8192).default(''),
 });
@@ -26,6 +31,7 @@ const EMPTY: Omit<Agent, 'id' | 'createdAt' | 'updatedAt' | 'capabilities'> = {
   baseUrl: '',
   model: '',
   maxTokens: null,
+  contextWindow: null,
   enabledApi: false,
   systemPrompt: '',
 };
@@ -72,6 +78,8 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
           baseUrl: a.baseUrl,
           model: a.model,
           maxTokens: a.maxTokens,
+          // v6.3.1: 后端若尚未升级到 schema_version=2，a.contextWindow 仍可能为 undefined；兜底 null。
+          contextWindow: a.contextWindow ?? null,
           enabledApi: a.enabledApi,
           systemPrompt: a.systemPrompt,
         });
@@ -100,8 +108,12 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
     e.preventDefault();
     setNameConflict(false);
     setSubmitError(null);
-    // maxTokens 在 UI 层用 null 表示"留空"；提交前转成 '' 让 zod 接受。
-    const candidate = { ...form, maxTokens: form.maxTokens === null ? '' : form.maxTokens };
+    // maxTokens / contextWindow 在 UI 层用 null 表示"留空"；提交前转成 '' 让 zod 接受。
+    const candidate = {
+      ...form,
+      maxTokens: form.maxTokens === null ? '' : form.maxTokens,
+      contextWindow: form.contextWindow === null ? '' : form.contextWindow,
+    };
     const parsed = FormSchema.safeParse(candidate);
     if (!parsed.success) {
       setSubmitError(parsed.error.issues[0]?.message ?? 'invalid');
@@ -114,6 +126,8 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
         llmProvider: 'openai-compatible' as const,
         capabilities: [] as string[],
         maxTokens: parsed.data.maxTokens === '' ? null : (parsed.data.maxTokens as number),
+        contextWindow:
+          parsed.data.contextWindow === '' ? null : (parsed.data.contextWindow as number),
       };
       if (mode === 'create') {
         await createAgent(gatewayUrl, clientKey, body);
@@ -322,6 +336,31 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
                     max={32000}
                     disabled={submitting}
                     aria-label={t('agentForm.field.maxTokens.label')}
+                    style={{
+                      width: '100%',
+                      padding: 8,
+                      background: 'var(--panel-bg)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text)',
+                      borderRadius: 4,
+                    }}
+                  />
+                  {/* v6.3.1: context window（Ollama num_ctx；其他 provider 静默忽略） */}
+                  <input
+                    type="number"
+                    className="input"
+                    value={form.contextWindow === null ? '' : String(form.contextWindow)}
+                    onChange={e =>
+                      setForm({
+                        ...form,
+                        contextWindow: e.target.value === '' ? null : Number(e.target.value),
+                      })
+                    }
+                    placeholder={t('agentForm.field.contextWindow.placeholder')}
+                    min={1}
+                    max={2_000_000}
+                    disabled={submitting}
+                    aria-label={t('agentForm.field.contextWindow.label')}
                     style={{
                       width: '100%',
                       padding: 8,

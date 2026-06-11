@@ -117,6 +117,7 @@ describe('Integration: office flow', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxTokens: null,
+      contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],
@@ -151,9 +152,9 @@ describe('Integration: office flow', () => {
     await waitFor(() => expect(screen.getByText('尚无 agent')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: '新建 agent' }));
     await waitFor(() => expect(screen.getByText('新建 Agent')).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText('NAME'), { target: { value: 'Echo' } });
-    fireEvent.change(screen.getByLabelText('BASE URL'), { target: { value: 'http://x' } });
-    fireEvent.change(screen.getByLabelText('MODEL'), { target: { value: 'qwen' } });
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'Echo' } });
+    fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'qwen' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(screen.getByText('Echo')).toBeInTheDocument());
     // 点卡片
@@ -174,6 +175,7 @@ describe('Integration: office flow', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxTokens: null,
+      contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],
@@ -188,6 +190,7 @@ describe('Integration: office flow', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxTokens: null,
+      contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],
@@ -255,6 +258,7 @@ describe('Integration: office flow', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxTokens: null,
+      contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],
@@ -277,7 +281,7 @@ describe('Integration: office flow', () => {
     await waitFor(() => expect(screen.getByDisplayValue('Echo')).toBeInTheDocument());
 
     // 改名字
-    const nameInput = screen.getByLabelText('NAME');
+    const nameInput = screen.getByLabelText('名称');
     fireEvent.change(nameInput, { target: { value: 'Echo Renamed' } });
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() =>
@@ -303,6 +307,7 @@ describe('Integration: office flow', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxTokens: null,
+      contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],
@@ -348,6 +353,7 @@ describe('Integration: office flow', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxTokens: null,
+      contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],

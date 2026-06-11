@@ -1,5 +1,6 @@
 // AgentFormDialog 组件测试：mode=create/edit + 8 字段 + 校验 + 提交 + 409 + 删除。
 // mock 整个 agents lib（与 PairDialog 测试风格一致）。
+// v6.3.1: 新增 contextWindow 字段 + 改用中文 i18n label（"名称" / "基础 URL" / "模型" / "上下文窗口"）。
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ApiError } from '@/lib/api.js';
@@ -50,6 +51,7 @@ describe('<AgentFormDialog>', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxTokens: 2048,
+      contextWindow: 65536,
       enabledApi: false,
       systemPrompt: 'sys',
       capabilities: [],
@@ -70,6 +72,8 @@ describe('<AgentFormDialog>', () => {
     await waitFor(() => expect(screen.getByDisplayValue('Echo')).toBeInTheDocument());
     expect(screen.getByDisplayValue('http://x')).toBeInTheDocument();
     expect(screen.getByDisplayValue('2048')).toBeInTheDocument();
+    // v6.3.1: context window 字段也回填
+    expect(screen.getByDisplayValue('65536')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '删除' })).toBeInTheDocument();
   });
@@ -84,12 +88,12 @@ describe('<AgentFormDialog>', () => {
         onSaved={vi.fn()}
       />,
     );
-    fireEvent.change(screen.getByLabelText('NAME'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     expect(agentsLib.createAgent).not.toHaveBeenCalled();
   });
 
-  it('提交成功 → onSaved', async () => {
+  it('提交成功 → onSaved（body 含 contextWindow=null）', async () => {
     vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
     const onSaved = vi.fn();
     render(
@@ -101,11 +105,35 @@ describe('<AgentFormDialog>', () => {
         onSaved={onSaved}
       />,
     );
-    fireEvent.change(screen.getByLabelText('NAME'), { target: { value: 'New' } });
-    fireEvent.change(screen.getByLabelText('BASE URL'), { target: { value: 'http://x' } });
-    fireEvent.change(screen.getByLabelText('MODEL'), { target: { value: 'm' } });
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'New' } });
+    fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    // v6.3.1: 提交 body 应含 contextWindow 字段
+    const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
+    expect(call[2]).toHaveProperty('contextWindow', null);
+  });
+
+  it('v6.3.1: 填写 contextWindow → 提交 body 包含该值', async () => {
+    vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
+    render(
+      <AgentFormDialog
+        mode="create"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'New' } });
+    fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'qwen3.5:4b' } });
+    fireEvent.change(screen.getByLabelText('上下文窗口'), { target: { value: '131072' } });
+    fireEvent.click(screen.getByRole('button', { name: '创建' }));
+    await waitFor(() => expect(agentsLib.createAgent).toHaveBeenCalled());
+    const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
+    expect(call[2]).toHaveProperty('contextWindow', 131072);
   });
 
   it('409 agent_name_conflict → name 字段红字（不调 onSaved）', async () => {
@@ -120,9 +148,9 @@ describe('<AgentFormDialog>', () => {
         onSaved={onSaved}
       />,
     );
-    fireEvent.change(screen.getByLabelText('NAME'), { target: { value: 'Echo' } });
-    fireEvent.change(screen.getByLabelText('BASE URL'), { target: { value: 'http://x' } });
-    fireEvent.change(screen.getByLabelText('MODEL'), { target: { value: 'm' } });
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'Echo' } });
+    fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(screen.getByText('名称已被占用')).toBeInTheDocument());
     expect(onSaved).not.toHaveBeenCalled();
@@ -137,6 +165,7 @@ describe('<AgentFormDialog>', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxTokens: null,
+      contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],

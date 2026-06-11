@@ -2,6 +2,7 @@
 // 字段集与 v6.1 core 端 §5.3.2 契约对齐；client 端不重新定义，仅 import 用。
 // 注: maxTokens 是 number | null（v6.1 端 1..32000 或 NULL）；capabilities 是 string[]（v6.1 灵活 JSON）。
 // 注: v6.3 form 隐藏 capabilities 字段（决策 4）；类型仍导出供后续编辑 UI 复用。
+// v6.3.1: 新增 contextWindow（云端模型需要区分 per-response maxTokens 与总 context window）。
 export type Agent = {
   id: string;
   name: string;
@@ -10,6 +11,7 @@ export type Agent = {
   baseUrl: string;
   model: string;
   maxTokens: number | null;
+  contextWindow: number | null;
   enabledApi: boolean;
   systemPrompt: string;
   capabilities: string[];

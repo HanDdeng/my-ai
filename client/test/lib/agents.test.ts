@@ -43,6 +43,8 @@ describe('client/src/lib/agents', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxTokens: null,
+      // v6.3.1: 新增 contextWindow
+      contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],

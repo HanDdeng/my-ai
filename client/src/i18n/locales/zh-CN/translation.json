@@ -139,19 +139,33 @@
   },
   "agentForm": {
     "title": { "create": "新建 Agent", "edit": "编辑 Agent" },
-    "section": { "basic": "基础", "llm": "LLM (OpenAI Compatible)", "system": "系统提示" },
+    "section": { "basic": "基础", "llm": "LLM 配置", "system": "系统提示" },
     "field": {
-      "name": { "label": "NAME", "required": "必填", "placeholder": "e.g. Echo" },
-      "description": { "label": "DESC", "placeholder": "一句话说明" },
+      "name": { "label": "名称", "required": "必填", "placeholder": "例如：Echo" },
+      "description": { "label": "描述", "placeholder": "一句话说明这个 agent 的用途" },
       "baseUrl": {
-        "label": "BASE URL",
+        "label": "基础 URL",
         "required": "必填",
         "placeholder": "http://localhost:11434/v1"
       },
-      "model": { "label": "MODEL", "required": "必填", "placeholder": "gpt-4o-mini / qwen2.5:7b" },
-      "maxTokens": { "label": "MAX TOKENS", "placeholder": "留空 = 不限" },
-      "enabledApi": { "label": "enabled_api", "hint": "v6.1 预留；不影响行为" },
-      "systemPrompt": { "label": "SYSTEM PROMPT", "placeholder": "" }
+      "model": {
+        "label": "模型",
+        "required": "必填",
+        "placeholder": "qwen3.5:4b / gpt-4o-mini / qwen2.5:7b"
+      },
+      "maxTokens": {
+        "label": "单次回复 Tokens",
+        "placeholder": "留空 = 不限；推荐 4000+ 给思考型模型"
+      },
+      "contextWindow": {
+        "label": "上下文窗口",
+        "placeholder": "例如 65536 (64K)；留空 = 用模型默认"
+      },
+      "enabledApi": { "label": "启用 API", "hint": "v6.1 预留；不影响当前行为" },
+      "systemPrompt": {
+        "label": "系统提示",
+        "placeholder": "例如：你是一个有帮助的助手"
+      }
     },
     "actions": { "cancel": "取消", "delete": "删除", "create": "创建", "save": "保存" },
     "errors": {

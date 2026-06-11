@@ -12,6 +12,7 @@ const agent: Agent = {
   baseUrl: 'http://x',
   model: 'qwen',
   maxTokens: null,
+  contextWindow: null,
   enabledApi: false,
   systemPrompt: '',
   capabilities: ['chat', 'tool'],

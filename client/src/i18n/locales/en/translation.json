@@ -139,23 +139,36 @@
   },
   "agentForm": {
     "title": { "create": "New Agent", "edit": "Edit Agent" },
-    "section": { "basic": "Basic", "llm": "LLM (OpenAI Compatible)", "system": "System Prompt" },
+    "section": { "basic": "Basic", "llm": "LLM Configuration", "system": "System Prompt" },
     "field": {
-      "name": { "label": "NAME", "required": "Required", "placeholder": "e.g. Echo" },
-      "description": { "label": "DESC", "placeholder": "One-line description" },
+      "name": { "label": "Name", "required": "Required", "placeholder": "e.g. Echo" },
+      "description": {
+        "label": "Description",
+        "placeholder": "One-line description of this agent"
+      },
       "baseUrl": {
-        "label": "BASE URL",
+        "label": "Base URL",
         "required": "Required",
         "placeholder": "http://localhost:11434/v1"
       },
       "model": {
-        "label": "MODEL",
+        "label": "Model",
         "required": "Required",
-        "placeholder": "gpt-4o-mini / qwen2.5:7b"
+        "placeholder": "qwen3.5:4b / gpt-4o-mini / qwen2.5:7b"
       },
-      "maxTokens": { "label": "MAX TOKENS", "placeholder": "Empty = unlimited" },
-      "enabledApi": { "label": "enabled_api", "hint": "Reserved for v6.1" },
-      "systemPrompt": { "label": "SYSTEM PROMPT", "placeholder": "" }
+      "maxTokens": {
+        "label": "Max Tokens (per response)",
+        "placeholder": "Empty = unlimited; 4000+ recommended for thinking models"
+      },
+      "contextWindow": {
+        "label": "Context Window",
+        "placeholder": "e.g. 65536 (64K); empty = model default"
+      },
+      "enabledApi": { "label": "Enabled API", "hint": "Reserved for v6.1; no current behavior" },
+      "systemPrompt": {
+        "label": "System Prompt",
+        "placeholder": "e.g. You are a helpful assistant"
+      }
     },
     "actions": { "cancel": "Cancel", "delete": "Delete", "create": "Create", "save": "Save" },
     "errors": {

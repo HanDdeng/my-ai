@@ -14,7 +14,7 @@ import type {
 } from '@/lib/types.js';
 
 describe('client/src/lib/types', () => {
-  it('Agent 形状：11 字段（含 capabilities 数组）', () => {
+  it('Agent 形状：13 字段（含 capabilities 数组 + v6.3.1 contextWindow）', () => {
     const a: Agent = {
       id: 'a1',
       name: 'Echo',
@@ -23,13 +23,15 @@ describe('client/src/lib/types', () => {
       baseUrl: 'http://localhost:11434/v1',
       model: 'qwen2.5:7b',
       maxTokens: null,
+      // v6.3.1: 新增 contextWindow（云端模型需要区分 per-response maxTokens 与总 context window）
+      contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: ['chat', 'tool'],
       createdAt: '2026-06-11T00:00:00.000Z',
       updatedAt: '2026-06-11T00:00:00.000Z',
     };
-    expect(Object.keys(a)).toHaveLength(12);
+    expect(Object.keys(a)).toHaveLength(13);
     expect(a.llmProvider).toBe('openai-compatible');
   });
 
@@ -64,6 +66,8 @@ describe('client/src/lib/types', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxTokens: null,
+      // v6.3.1: 新增 contextWindow
+      contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],
