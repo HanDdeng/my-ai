@@ -1,7 +1,6 @@
 // GET / POST /v1/sessions/{id}/messages。
 // POST 调 OpenAI 兼容 LLM，写 user + assistant 两条消息，返回 { userMessage, assistantMessage }。
 // GET 拉历史。session 不存在 404；LLM upstream 5xx 转 502 upstream_error。
-// v6.3.1: 调 LLM 时传 contextWindow（Ollama 专用 num_ctx）。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
@@ -66,8 +65,6 @@ export async function messageRoutes(app: FastifyInstance) {
       apiKey: cfg.LLM_API_KEY,
       model: agent.model,
       maxTokens: agent.max_tokens ?? undefined,
-      // v6.3.1: 透传 contextWindow（Ollama num_ctx）。
-      contextWindow: agent.context_window ?? undefined,
     });
 
     const messages = [];

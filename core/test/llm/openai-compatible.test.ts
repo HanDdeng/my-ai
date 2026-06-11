@@ -163,7 +163,7 @@ describe('OpenAICompatibleLLMClient', () => {
     expect(body.max_tokens).toBe(500);
   });
 
-  it('v6.3.1: cfg.contextWindow 存在 → body 写入 num_ctx', async () => {
+  it('cfg.maxTokens 存在 + req.maxTokens 缺失 → body.max_tokens = cfg.maxTokens', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: async () => ({ choices: [{ message: { content: 'x' } }] }),
@@ -173,16 +173,19 @@ describe('OpenAICompatibleLLMClient', () => {
     const client = new OpenAICompatibleLLMClient({
       baseUrl: 'http://x/v1',
       model: 'm',
-      contextWindow: 65536,
+      maxTokens: 4000,
     });
     await client.chat({ model: 'm', messages: [] });
 
     const [, init] = fetchMock.mock.calls[0]!;
     const body = JSON.parse((init as RequestInit).body as string);
-    expect(body.num_ctx).toBe(65536);
+    expect(body.model).toBe('m');
+    expect(body.messages).toEqual([]);
+    expect(body.max_tokens).toBe(4000);
+    expect(body.stream).toBe(false);
   });
 
-  it('v6.3.1: cfg.contextWindow 缺失 → body 不写 num_ctx 字段', async () => {
+  it('协议层只发 OpenAI 标准字段：body 不包含 num_ctx 等 provider 私有键', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: async () => ({ choices: [{ message: { content: 'x' } }] }),
@@ -192,11 +195,15 @@ describe('OpenAICompatibleLLMClient', () => {
     const client = new OpenAICompatibleLLMClient({
       baseUrl: 'http://x/v1',
       model: 'm',
+      maxTokens: 4000,
     });
     await client.chat({ model: 'm', messages: [] });
 
     const [, init] = fetchMock.mock.calls[0]!;
     const body = JSON.parse((init as RequestInit).body as string);
+    // 关键断言：contextWindow 不进协议层
     expect(body.num_ctx).toBeUndefined();
+    // 兜底：body 只有 OpenAI 标准键
+    expect(Object.keys(body).sort()).toEqual(['max_tokens', 'messages', 'model', 'stream']);
   });
 });

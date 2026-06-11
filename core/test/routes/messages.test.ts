@@ -188,7 +188,7 @@ describe('routes /v1/sessions/:id/messages', () => {
       expect(res.json().message).toBe('upstream_error');
     });
 
-    it('v6.3.1: agent.contextWindow → num_ctx 进 fetch body', async () => {
+    it('v6.3.1: contextWindow 是 metadata；不进 fetch body（OpenAI 协议不接 num_ctx）', async () => {
       await seedAgentAndSession();
       // 直接通过 DAO 设置 context_window（不走 zod 校验路径）
       const agentsDao = (app as unknown as { agents: AgentsDAO }).agents;
@@ -214,7 +214,12 @@ describe('routes /v1/sessions/:id/messages', () => {
       expect(res.statusCode).toBe(200);
       const [, init] = fetchMock.mock.calls[0]!;
       const reqBody = JSON.parse((init as RequestInit).body as string);
-      expect(reqBody.num_ctx).toBe(131072);
+      // OpenAI 标准字段
+      expect(reqBody.model).toBe('m');
+      expect(reqBody.messages).toBeDefined();
+      expect(reqBody.stream).toBe(false);
+      // 关键断言：contextWindow 不进协议层
+      expect(reqBody.num_ctx).toBeUndefined();
     });
   });
 });

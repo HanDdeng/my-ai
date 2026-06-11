@@ -2,7 +2,7 @@
 // 走任意 OpenAI 兼容协议服务（Ollama / vLLM / LM Studio / 第三方代理 / OpenAI 公司）。
 // baseUrl 必须含版本路径（如 /v1）；调用方拼接 /chat/completions。
 // Node 20+ 内置 fetch，无新依赖。AbortSignal.timeout 60s 上限防挂死。
-// v6.3.1: contextWindow → num_ctx（Ollama 字段；其他 OpenAI 兼容 provider 静默忽略）。
+// 严格 OpenAI 协议：只发 model / messages / max_tokens / stream，不掺 provider 私有字段。
 import type { ChatRequest, ChatResponse, LLMClient } from './types.js';
 import { LLMUpstreamError } from './errors.js';
 
@@ -11,7 +11,6 @@ export type OpenAICompatibleConfig = {
   apiKey?: string;
   model: string;
   maxTokens?: number | undefined;
-  contextWindow?: number | undefined;
 };
 
 export class OpenAICompatibleLLMClient implements LLMClient {
@@ -23,16 +22,12 @@ export class OpenAICompatibleLLMClient implements LLMClient {
     if (this.cfg.apiKey) {
       headers['Authorization'] = `Bearer ${this.cfg.apiKey}`;
     }
-    const body: Record<string, unknown> = {
+    const body = {
       model: req.model,
       messages: req.messages,
       max_tokens: req.maxTokens ?? this.cfg.maxTokens,
       stream: false,
     };
-    // v6.3.1: Ollama 专用字段；非 Ollama provider 收到会静默忽略。
-    if (this.cfg.contextWindow !== undefined) {
-      body.num_ctx = this.cfg.contextWindow;
-    }
 
     let res: Response;
     try {
