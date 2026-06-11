@@ -1041,9 +1041,9 @@ body {
   background: var(--panel-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  animation: pulse 1500ms ease-in-out infinite;
+  animation: skeletonPulse 1500ms ease-in-out infinite;
 }
-@keyframes pulse {
+@keyframes skeletonPulse {
   0%,
   100% {
     opacity: 0.5;
