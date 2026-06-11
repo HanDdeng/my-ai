@@ -24,7 +24,7 @@ type ApiEnvelope<T> =
   | { data: null; code: number; message: string };
 
 export type ApiFetchOptions = {
-  method?: 'GET' | 'POST' | 'DELETE' | 'PUT';
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'; // v6.3: 加 'PATCH'
   body?: unknown;
   clientKey?: string | null;
 };

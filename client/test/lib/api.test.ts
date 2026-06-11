@@ -129,4 +129,27 @@ describe('apiFetch', () => {
       expect(fetchMock.mock.calls[0]?.[0]).toBe('http://x:8787/health');
     });
   });
+
+  // v6.3：apiFetch method 类型加 PATCH，让前端 PATCH /v1/agents/{id} 走类型化。
+  it('PATCH 方法透传：method=PATCH 走 fetch', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: { id: 'a1' }, code: 0, message: 'ok' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const result = await apiFetch<{ id: string }>('http://gw/v1/agents/a1', {
+      method: 'PATCH',
+      clientKey: 'ck',
+      body: { name: 'Renamed' },
+    });
+    expect(result).toEqual({ id: 'a1' });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'http://gw/v1/agents/a1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ name: 'Renamed' }),
+      }),
+    );
+  });
 });
