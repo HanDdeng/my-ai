@@ -1,7 +1,7 @@
 // 端到端集成测试：mock 整个 agents/sessions/messages lib + render wrapper with 父状态机。
 // 覆盖 3 场景：建→聊；切 agent；401。
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import * as agentsLib from '@/lib/agents.js';
 import * as sessionsLib from '@/lib/sessions.js';
@@ -31,9 +31,11 @@ vi.mock('@/lib/messages.js', () => ({
 type OfficeFlowProps = {
   // 预留 props 便于后续扩展（initialAgents seed），目前未消费。
   initialAgents?: never;
+  // 透传到 ChatDialog.onClose 的测试 spy，用于断言"404 不自动调 onClose"等场景。
+  onClose?: () => void;
 };
 
-function OfficeFlow(_props: OfficeFlowProps = {}) {
+function OfficeFlow({ onClose }: OfficeFlowProps = {}) {
   const [dialog, setDialog] = useState<OfficeDialogKey | null>(null);
   const [refetchKey, setRefetchKey] = useState(0);
   const gw = 'http://gw';
@@ -59,12 +61,32 @@ function OfficeFlow(_props: OfficeFlowProps = {}) {
           }}
         />
       )}
+      {dialog?.type === 'edit-agent' && (
+        <AgentFormDialog
+          mode="edit"
+          agentId={dialog.agentId}
+          gatewayUrl={gw}
+          clientKey={ck}
+          onClose={() => setDialog(null)}
+          onSaved={() => {
+            setDialog(null);
+            setRefetchKey((k: number) => k + 1);
+          }}
+          onDeleted={() => {
+            setDialog(null);
+            setRefetchKey((k: number) => k + 1);
+          }}
+        />
+      )}
       {dialog?.type === 'chat' && (
         <ChatDialog
           agentId={dialog.agentId}
           gatewayUrl={gw}
           clientKey={ck}
-          onClose={() => setDialog(null)}
+          onClose={() => {
+            setDialog(null);
+            onClose?.();
+          }}
           onAgentDeleted={() => {
             setDialog(null);
             setRefetchKey((k: number) => k + 1);
@@ -80,6 +102,8 @@ describe('Integration: office flow', () => {
     vi.mocked(agentsLib.listAgents).mockReset();
     vi.mocked(agentsLib.getAgent).mockReset();
     vi.mocked(agentsLib.createAgent).mockReset();
+    vi.mocked(agentsLib.updateAgent).mockReset();
+    vi.mocked(agentsLib.deleteAgent).mockReset();
     vi.mocked(sessionsLib.createSession).mockReset();
     vi.mocked(messagesLib.postMessage).mockReset();
   });
@@ -220,5 +244,143 @@ describe('Integration: office flow', () => {
       expect(spy).toHaveBeenCalledWith(expect.objectContaining({ type: 'my-ai:unauthorized' })),
     );
     spy.mockRestore();
+  });
+
+  it('edit 端到端: 点 ✎ → 加载数据 → 改名字 → 保存 → listAgents 重拉', async () => {
+    const original = {
+      id: 'a1',
+      name: 'Echo',
+      description: 'old',
+      llmProvider: 'openai-compatible' as const,
+      baseUrl: 'http://x',
+      model: 'qwen',
+      maxTokens: null,
+      enabledApi: false,
+      systemPrompt: '',
+      capabilities: [],
+      createdAt: 't',
+      updatedAt: 't',
+    };
+    const updated = { ...original, name: 'Echo Renamed', description: 'new' };
+    vi.mocked(agentsLib.listAgents)
+      .mockResolvedValueOnce([original]) // 初始
+      .mockResolvedValueOnce([updated]); // 保存后
+    vi.mocked(agentsLib.getAgent).mockResolvedValue(original);
+    vi.mocked(agentsLib.updateAgent).mockResolvedValue(updated);
+
+    render(<OfficeFlow />);
+    await waitFor(() => expect(screen.getByText('Echo')).toBeInTheDocument());
+
+    // 点 ✎ 编辑按钮
+    fireEvent.click(screen.getByLabelText('✎ 编辑'));
+    await waitFor(() => expect(screen.getByText('编辑 Agent')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByDisplayValue('Echo')).toBeInTheDocument());
+
+    // 改名字
+    const nameInput = screen.getByLabelText('NAME');
+    fireEvent.change(nameInput, { target: { value: 'Echo Renamed' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+    await waitFor(() =>
+      expect(agentsLib.updateAgent).toHaveBeenCalledWith(
+        'http://gw',
+        'ck',
+        'a1',
+        expect.objectContaining({ name: 'Echo Renamed' }),
+      ),
+    );
+    // App 关 dialog + bump refetchKey → listAgents 第二次被调
+    await waitFor(() => expect(agentsLib.listAgents).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByText('Echo Renamed')).toBeInTheDocument());
+    expect(screen.queryByText('Echo')).toBeNull();
+  });
+
+  it('delete 端到端: 点 ✎ → form 内点删除 → ConfirmDialog → 确认 → deleteAgent + onDeleted', async () => {
+    const a1 = {
+      id: 'a1',
+      name: 'Echo',
+      description: '',
+      llmProvider: 'openai-compatible' as const,
+      baseUrl: 'http://x',
+      model: 'qwen',
+      maxTokens: null,
+      enabledApi: false,
+      systemPrompt: '',
+      capabilities: [],
+      createdAt: 't',
+      updatedAt: 't',
+    };
+    vi.mocked(agentsLib.listAgents)
+      .mockResolvedValueOnce([a1]) // 初始
+      .mockResolvedValueOnce([]); // 删除后
+    vi.mocked(agentsLib.getAgent).mockResolvedValue(a1);
+    vi.mocked(agentsLib.deleteAgent).mockResolvedValue(null);
+
+    render(<OfficeFlow />);
+    await waitFor(() => expect(screen.getByText('Echo')).toBeInTheDocument());
+
+    // 点 ✎
+    fireEvent.click(screen.getByLabelText('✎ 编辑'));
+    await waitFor(() => expect(screen.getByText('编辑 Agent')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByDisplayValue('Echo')).toBeInTheDocument());
+
+    // 点 form 内"删除"按钮
+    fireEvent.click(screen.getByRole('button', { name: '删除' }));
+    // ConfirmDialog 弹出
+    await waitFor(() => expect(screen.getByText('删除 Agent')).toBeInTheDocument());
+    // 确认（alertdialog 内）
+    const alertDialog = screen.getByRole('alertdialog');
+    fireEvent.click(within(alertDialog).getByRole('button', { name: '删除' }));
+    await waitFor(() =>
+      expect(agentsLib.deleteAgent).toHaveBeenCalledWith('http://gw', 'ck', 'a1'),
+    );
+    // App 关 dialog + bump refetchKey
+    await waitFor(() => expect(agentsLib.listAgents).toHaveBeenCalledTimes(2));
+    // Echo 消失
+    await waitFor(() => expect(screen.queryByText('Echo')).toBeNull());
+  });
+
+  it('ChatDialog 中 postMessage 404 → 显示错误 + 不自动调 onClose', async () => {
+    const a1 = {
+      id: 'a1',
+      name: 'Echo',
+      description: '',
+      llmProvider: 'openai-compatible' as const,
+      baseUrl: 'http://x',
+      model: 'qwen',
+      maxTokens: null,
+      enabledApi: false,
+      systemPrompt: '',
+      capabilities: [],
+      createdAt: 't',
+      updatedAt: 't',
+    };
+    vi.mocked(agentsLib.listAgents).mockResolvedValue([a1]);
+    vi.mocked(agentsLib.getAgent).mockResolvedValue(a1);
+    vi.mocked(sessionsLib.createSession).mockResolvedValue({
+      id: 's',
+      agentId: 'a1',
+      clientKey: 'ck',
+      title: '',
+      createdAt: 't',
+      updatedAt: 't',
+    });
+    vi.mocked(messagesLib.postMessage).mockRejectedValue(new ApiError(404, 'session_not_found'));
+    const onClose = vi.fn();
+
+    render(<OfficeFlow onClose={onClose} />);
+    await waitFor(() => expect(screen.getByText('Echo')).toBeInTheDocument());
+
+    // 点卡片 → chat
+    fireEvent.click(screen.getByText('Echo'));
+    await waitFor(() => screen.getByText('发条消息开始对话'));
+
+    // 发消息 → 404
+    fireEvent.change(screen.getByPlaceholderText('输入消息…'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: '发送' }));
+    await waitFor(() => expect(messagesLib.postMessage).toHaveBeenCalled());
+    // 错误条显示
+    await waitFor(() => expect(screen.getByText(/发送失败/)).toBeInTheDocument());
+    // 不自动调 onClose（用户可重试或手动关）
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
