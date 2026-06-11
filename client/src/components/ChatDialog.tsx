@@ -57,8 +57,6 @@ export function ChatDialog({
   onClose,
   onAgentDeleted,
 }: ChatDialogProps): ReactElement {
-  // 当前实现未消费 onAgentDeleted（agent 删除后弹窗会在加载阶段 404 提示用户），保留在 props 以便后续实现错误提示/重试或列表同步
-  void onAgentDeleted;
   const { t } = useTranslation();
   const { isClosing, close, onOverlayClick } = useDialogAnimation(onClose);
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -69,6 +67,9 @@ export function ChatDialog({
   const [state, dispatch] = useReducer(chatReducer, { kind: 'idle' });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const autoCloseRef = useRef<number | null>(null);
+  // 用 ref 保存 onAgentDeleted：避免父组件每次 render 传新函数导致下方 effect 重跑（重新加载 agent）
+  const onAgentDeletedRef = useRef(onAgentDeleted);
+  onAgentDeletedRef.current = onAgentDeleted;
 
   // 加载 agent
   useEffect(() => {
@@ -85,7 +86,8 @@ export function ChatDialog({
         }
         if (e instanceof ApiError && e.code === 404) {
           setLoadError('notFound');
-          autoCloseRef.current = window.setTimeout(() => onClose(), 1500);
+          // spec §5.5.2: agent 被删 → 显示半屏提示 1.5s 后通知父组件（父组件会关闭弹窗 + 刷新列表）
+          autoCloseRef.current = window.setTimeout(() => onAgentDeletedRef.current(), 1500);
         } else if (e instanceof ApiError && e.code === 401) {
           window.dispatchEvent(new CustomEvent('my-ai:unauthorized'));
         } else {
@@ -99,7 +101,7 @@ export function ChatDialog({
         autoCloseRef.current = null;
       }
     };
-  }, [agentId, gatewayUrl, clientKey, onClose]);
+  }, [agentId, gatewayUrl, clientKey]);
 
   // 滚动到底部（jsdom 缺 scrollIntoView 实现，加可选链保护）
   useEffect(() => {

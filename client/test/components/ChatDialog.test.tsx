@@ -234,4 +234,27 @@ describe('<ChatDialog>', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
+
+  it('getAgent 404 → 显示 "agent 已被删除" + 1.5s 后 onAgentDeleted（不调 onClose）', async () => {
+    // spec §5.5.2: agent 被删时 → 半屏提示 1.5s → onAgentDeleted
+    vi.mocked(agentsLib.getAgent).mockRejectedValue(new ApiError(404, 'not_found'));
+    const onClose = vi.fn();
+    const onAgentDeleted = vi.fn();
+    render(
+      <ChatDialog
+        agentId="a1"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={onClose}
+        onAgentDeleted={onAgentDeleted}
+      />,
+    );
+    // 立即显示 "agent 已被删除" 提示
+    await waitFor(() => expect(screen.getByText('agent 已被删除')).toBeInTheDocument());
+    // 1.5s 内：onAgentDeleted 未被调用
+    expect(onAgentDeleted).not.toHaveBeenCalled();
+    // 1.5s 后：onAgentDeleted 被调用 1 次；onClose 未被直接调用（由父组件 onAgentDeleted 处理后关闭）
+    await waitFor(() => expect(onAgentDeleted).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
