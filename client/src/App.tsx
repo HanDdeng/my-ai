@@ -16,6 +16,9 @@ import { MismatchBanner } from './components/MismatchBanner.js';
 import { PairBanner } from './components/PairBanner.js';
 import { PairDialog } from './components/PairDialog.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
+import { Office, type OfficeDialogKey } from './components/Office.js';
+import { AgentFormDialog } from './components/AgentFormDialog.js';
+import { ChatDialog } from './components/ChatDialog.js';
 import { LanguageSwitcher } from './i18n/switch.js';
 import { loadSecureConfig, clearSecureConfig, type SecureConfig } from './lib/secure-store.js';
 import { randomUUID } from './lib/uuid.js';
@@ -58,6 +61,9 @@ function App() {
   // 首次配对（无 secureConfig）时为 PairDialog 提供稳定的临时 clientKey。
   // 用 useState 初始化函数确保只生成一次，不随 re-render 抖动。
   const [draftKey, setDraftKey] = useState<string>(() => randomUUID());
+  // v6.3: Office 内的对话框控制（null = 无对话框）。保存/删除后通过 refetchKey 触发 Office 重新拉取。
+  const [officeDialog, setOfficeDialog] = useState<OfficeDialogKey | null>(null);
+  const [officeRefetchKey, setOfficeRefetchKey] = useState(0);
 
   // 启动时读 secure config；无则进入 NEED_PAIR。
   useEffect(() => {
@@ -230,6 +236,56 @@ function App() {
           gatewayVersion={version}
           requiredRange={COMPAT.upstream.gateway}
           onDismiss={() => setBannerDismissed(true)}
+        />
+      )}
+
+      {status === 'PAIRED' && secureConfig && (
+        <Office
+          gatewayUrl={secureConfig.gatewayUrl}
+          clientKey={secureConfig.clientKey}
+          refetchKey={officeRefetchKey}
+          onOpenDialog={setOfficeDialog}
+        />
+      )}
+      {officeDialog?.type === 'create-agent' && secureConfig && (
+        <AgentFormDialog
+          mode="create"
+          gatewayUrl={secureConfig.gatewayUrl}
+          clientKey={secureConfig.clientKey}
+          onClose={() => setOfficeDialog(null)}
+          onSaved={() => {
+            setOfficeDialog(null);
+            setOfficeRefetchKey(k => k + 1);
+          }}
+        />
+      )}
+      {officeDialog?.type === 'edit-agent' && secureConfig && (
+        <AgentFormDialog
+          mode="edit"
+          agentId={officeDialog.agentId}
+          gatewayUrl={secureConfig.gatewayUrl}
+          clientKey={secureConfig.clientKey}
+          onClose={() => setOfficeDialog(null)}
+          onSaved={() => {
+            setOfficeDialog(null);
+            setOfficeRefetchKey(k => k + 1);
+          }}
+          onDeleted={() => {
+            setOfficeDialog(null);
+            setOfficeRefetchKey(k => k + 1);
+          }}
+        />
+      )}
+      {officeDialog?.type === 'chat' && secureConfig && (
+        <ChatDialog
+          agentId={officeDialog.agentId}
+          gatewayUrl={secureConfig.gatewayUrl}
+          clientKey={secureConfig.clientKey}
+          onClose={() => setOfficeDialog(null)}
+          onAgentDeleted={() => {
+            setOfficeDialog(null);
+            setOfficeRefetchKey(k => k + 1);
+          }}
         />
       )}
 

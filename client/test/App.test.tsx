@@ -32,6 +32,32 @@ function mockOk(version: string) {
   );
 }
 
+// v6.3: Office 渲染后会调 listAgents（GET /v1/agents）。App 状态机测试关心的是
+// handshake 路径，Office 那条路只关心不要让 fetch 抛错。统一返回空数组
+// 让 Office 进入 EmptyOffice 分支。
+function mockAgentList() {
+  return new Response(
+    JSON.stringify({
+      data: [],
+      code: 0,
+      message: 'ok',
+    }),
+    { status: 200 },
+  );
+}
+
+// v6.3: fetch dispatcher — 按 URL 路由 mockOk / mockAgentList。
+// 兼顾旧的"全局 vi.fn(async () => mockOk(...))"用例不破坏。
+function makeFetchRouter(handshakeResponse: () => Response) {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url.includes('/v1/agents')) {
+      return mockAgentList();
+    }
+    return handshakeResponse();
+  });
+}
+
 // 默认 secureConfig：模拟已配对的客户端，跳过 NEED_PAIR。
 function defaultConfig() {
   return {
@@ -47,10 +73,11 @@ describe('App 状态机', () => {
     // 只 fake setInterval，让 heartbeat 可被 advanceTimersByTime 推进；
     // setTimeout 保持真实，这样 testing-library 的 findByText / waitFor 轮询能正常触发。
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
-    // 注入默认 fetch mock：成功 + version 在范围内
+    // 注入默认 fetch mock：成功 + version 在范围内。
+    // v6.3: 走 router 让 /v1/agents 走 AgentList mock，握手路径走 mockOk。
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => mockOk('0.0.3')),
+      makeFetchRouter(() => mockOk('0.0.3')),
     );
     // 注入 import.meta.env
     vi.stubEnv('VITE_GATEWAY_URL', GATEWAY_URL);
@@ -87,7 +114,7 @@ describe('App 状态机', () => {
   it('fetch 成功 + version out of range → PAIRED + MismatchBanner 显示', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => mockOk('1.0.0')),
+      makeFetchRouter(() => mockOk('1.0.0')),
     );
     render(<App />);
     await act(async () => {
@@ -100,7 +127,7 @@ describe('App 状态机', () => {
   it('点 banner 关闭按钮 → banner 消失，session 内不重亮', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => mockOk('1.0.0')),
+      makeFetchRouter(() => mockOk('1.0.0')),
     );
     render(<App />);
     await act(async () => {
@@ -170,7 +197,7 @@ describe('App 状态机', () => {
   });
 
   it('已配对时点 Settings "测试" → 重跑握手（fetch 再次被调）', async () => {
-    const fetchMock = vi.fn(async () => mockOk('0.0.3'));
+    const fetchMock = makeFetchRouter(() => mockOk('0.0.3'));
     vi.stubGlobal('fetch', fetchMock);
     render(<App />);
     await act(async () => {
