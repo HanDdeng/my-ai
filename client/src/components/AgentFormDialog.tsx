@@ -428,6 +428,7 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
               setShowDelete(false);
             }
           }}
+          options={{ mountEsc: false }}
         />
       )}
       {deleteError && (

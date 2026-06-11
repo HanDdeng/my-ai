@@ -1,9 +1,9 @@
 // 通用确认弹窗：420px 居中；走 slideInRight / slideOutRight 动画。
-// 嵌在 AgentFormDialog 内部时传 { mountEsc: false }，由父层统一响应 ESC。
+// 嵌在 AgentFormDialog 内部时调用处传 { mountEsc: false }，由父层统一响应 ESC。
 // 提交流程：点确认 → onConfirm() 由父组件负责实际 API 调用；ConfirmDialog 自身不 catch。
 import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDialogAnimation } from '@/lib/use-dialog-animation.js';
+import { useDialogAnimation, type UseDialogAnimationOptions } from '@/lib/use-dialog-animation.js';
 
 export type ConfirmDialogProps = {
   title: string;
@@ -12,12 +12,13 @@ export type ConfirmDialogProps = {
   cancelLabel: string;
   onConfirm: () => void;
   onClose: () => void;
+  options?: UseDialogAnimationOptions;
 };
 
 export function ConfirmDialog(props: ConfirmDialogProps): ReactElement {
   const { t } = useTranslation();
-  const { title, message, confirmLabel, cancelLabel, onConfirm, onClose } = props;
-  const { isClosing, close, onOverlayClick } = useDialogAnimation(onClose, { mountEsc: false });
+  const { title, message, confirmLabel, cancelLabel, onConfirm, onClose, options } = props;
+  const { isClosing, close, onOverlayClick } = useDialogAnimation(onClose, options);
 
   return (
     <>

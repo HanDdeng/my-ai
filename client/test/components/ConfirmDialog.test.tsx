@@ -83,7 +83,27 @@ describe('<ConfirmDialog>', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('ESC 键不触发关闭（mountEsc=false）', () => {
+  it('ESC 键不触发关闭（嵌套场景 options.mountEsc=false）', () => {
+    const onClose = vi.fn();
+    render(
+      <ConfirmDialog
+        title="t"
+        message="m"
+        confirmLabel="c"
+        cancelLabel="x"
+        onConfirm={vi.fn()}
+        onClose={onClose}
+        options={{ mountEsc: false }}
+      />,
+    );
+    fireEvent.keyDown(window, { key: 'Escape' });
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('ESC 键触发关闭（顶层场景 options.mountEsc 默认 true）', () => {
     const onClose = vi.fn();
     render(
       <ConfirmDialog
@@ -99,6 +119,6 @@ describe('<ConfirmDialog>', () => {
     act(() => {
       vi.advanceTimersByTime(150);
     });
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
