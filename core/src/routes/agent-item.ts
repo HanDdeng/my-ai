@@ -1,9 +1,10 @@
 // GET / PATCH / DELETE /v1/agents/{id}。
 // CASCADE 由 schema.sql 的 ON DELETE CASCADE 约束 + PRAGMA foreign_keys=ON 处理，
 // 路由层不直接调 SessionsDAO。
+// v6.3.1: PATCH body 新增 contextWindow 字段。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { AgentsDAO, type AgentRow } from '../db/agents.js';
+import { type AgentsDAO, type AgentRow } from '../db/agents.js';
 import { HttpError } from '../errors.js';
 
 const PatchAgentBody = z
@@ -13,6 +14,8 @@ const PatchAgentBody = z
     baseUrl: z.string().min(1).max(512).optional(),
     model: z.string().min(1).max(128).optional(),
     maxTokens: z.number().int().min(1).max(32000).nullable().optional(),
+    // v6.3.1: context window；与 maxTokens（per-response）区分。
+    contextWindow: z.number().int().min(1).max(2_000_000).nullable().optional(),
     enabledApi: z.boolean().optional(),
     systemPrompt: z.string().max(8192).optional(),
     capabilities: z.array(z.string()).optional(),
@@ -28,6 +31,7 @@ function rowToAgent(row: AgentRow) {
     baseUrl: row.base_url,
     model: row.model,
     maxTokens: row.max_tokens,
+    contextWindow: row.context_window,
     enabledApi: row.enabled_api === 1,
     systemPrompt: row.system_prompt,
     capabilities: JSON.parse(row.capabilities) as string[],
@@ -42,14 +46,18 @@ export async function agentItemRoutes(app: FastifyInstance) {
   app.get('/v1/agents/:id', async req => {
     const { id } = req.params as { id: string };
     const row = dao.get(id);
-    if (!row) throw new HttpError(404, 'agent_not_found');
+    if (!row) {
+      throw new HttpError(404, 'agent_not_found');
+    }
     return { data: rowToAgent(row), code: 0, message: 'ok' as const };
   });
 
-  app.patch('/v1/agents/:id', async (req, reply) => {
+  app.patch('/v1/agents/:id', async (req, _reply) => {
     const { id } = req.params as { id: string };
     const existing = dao.get(id);
-    if (!existing) throw new HttpError(404, 'agent_not_found');
+    if (!existing) {
+      throw new HttpError(404, 'agent_not_found');
+    }
 
     const parsed = PatchAgentBody.safeParse(req.body);
     if (!parsed.success) {
@@ -57,13 +65,30 @@ export async function agentItemRoutes(app: FastifyInstance) {
     }
 
     const fields: Partial<AgentRow> = { updated_at: new Date().toISOString() };
-    if (parsed.data.name !== undefined) fields.name = parsed.data.name;
-    if (parsed.data.description !== undefined) fields.description = parsed.data.description;
-    if (parsed.data.baseUrl !== undefined) fields.base_url = parsed.data.baseUrl;
-    if (parsed.data.model !== undefined) fields.model = parsed.data.model;
-    if (parsed.data.maxTokens !== undefined) fields.max_tokens = parsed.data.maxTokens;
-    if (parsed.data.enabledApi !== undefined) fields.enabled_api = parsed.data.enabledApi ? 1 : 0;
-    if (parsed.data.systemPrompt !== undefined) fields.system_prompt = parsed.data.systemPrompt;
+    if (parsed.data.name !== undefined) {
+      fields.name = parsed.data.name;
+    }
+    if (parsed.data.description !== undefined) {
+      fields.description = parsed.data.description;
+    }
+    if (parsed.data.baseUrl !== undefined) {
+      fields.base_url = parsed.data.baseUrl;
+    }
+    if (parsed.data.model !== undefined) {
+      fields.model = parsed.data.model;
+    }
+    if (parsed.data.maxTokens !== undefined) {
+      fields.max_tokens = parsed.data.maxTokens;
+    }
+    if (parsed.data.contextWindow !== undefined) {
+      fields.context_window = parsed.data.contextWindow;
+    }
+    if (parsed.data.enabledApi !== undefined) {
+      fields.enabled_api = parsed.data.enabledApi ? 1 : 0;
+    }
+    if (parsed.data.systemPrompt !== undefined) {
+      fields.system_prompt = parsed.data.systemPrompt;
+    }
     if (parsed.data.capabilities !== undefined) {
       fields.capabilities = JSON.stringify(parsed.data.capabilities);
     }
@@ -78,14 +103,18 @@ export async function agentItemRoutes(app: FastifyInstance) {
     }
 
     const updated = dao.get(id);
-    if (!updated) throw new HttpError(404, 'agent_not_found');
+    if (!updated) {
+      throw new HttpError(404, 'agent_not_found');
+    }
     return { data: rowToAgent(updated), code: 0, message: 'ok' as const };
   });
 
   app.delete('/v1/agents/:id', async req => {
     const { id } = req.params as { id: string };
     const existing = dao.get(id);
-    if (!existing) throw new HttpError(404, 'agent_not_found');
+    if (!existing) {
+      throw new HttpError(404, 'agent_not_found');
+    }
     dao.delete(id);
     return { data: null, code: 0, message: 'ok' as const };
   });

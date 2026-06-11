@@ -119,4 +119,38 @@ describe('routes /v1/agents/:id', () => {
     const s = (app as unknown as { sessions: SessionsDAO }).sessions.get('s-1');
     expect(s).toBeNull();
   });
+
+  it('v6.3.1: PATCH contextWindow → 持久化', async () => {
+    await insertEcho();
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/v1/agents/a-1',
+      payload: { contextWindow: 131072 },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.contextWindow).toBe(131072);
+    const got = (app as unknown as { agents: AgentsDAO }).agents.get('a-1');
+    expect(got?.context_window).toBe(131072);
+  });
+
+  it('v6.3.1: PATCH contextWindow = null 允许（清空）', async () => {
+    await insertEcho();
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/v1/agents/a-1',
+      payload: { contextWindow: null },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.contextWindow).toBeNull();
+  });
+
+  it('v6.3.1: PATCH contextWindow 越界 → 400', async () => {
+    await insertEcho();
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/v1/agents/a-1',
+      payload: { contextWindow: 2_000_001 },
+    });
+    expect(res.statusCode).toBe(400);
+  });
 });

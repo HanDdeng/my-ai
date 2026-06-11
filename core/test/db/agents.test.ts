@@ -26,6 +26,7 @@ describe('AgentsDAO', () => {
     base_url: 'http://localhost:11434/v1',
     model: 'qwen2.5:7b',
     max_tokens: 2048,
+    context_window: 65536,
     enabled_api: 0,
     system_prompt: '',
     capabilities: '[]',
@@ -38,6 +39,7 @@ describe('AgentsDAO', () => {
     dao.insert(sample());
     const got = dao.get('a-1');
     expect(got?.name).toBe('Echo');
+    expect(got?.context_window).toBe(65536);
     expect(dao.list()).toHaveLength(1);
   });
 
@@ -60,6 +62,20 @@ describe('AgentsDAO', () => {
     const got = dao.get('a-1');
     expect(got?.name).toBe('NewName');
     expect(got?.description).toBe('updated');
+  });
+
+  it('update 修改 context_window', () => {
+    dao.insert(sample());
+    dao.update('a-1', {
+      context_window: 131072,
+      updated_at: '2026-06-10T01:00:00.000Z',
+    });
+    expect(dao.get('a-1')?.context_window).toBe(131072);
+  });
+
+  it('context_window 允许为 null（云端模型不传时）', () => {
+    dao.insert(sample({ context_window: null }));
+    expect(dao.get('a-1')?.context_window).toBeNull();
   });
 
   it('delete 删行', () => {

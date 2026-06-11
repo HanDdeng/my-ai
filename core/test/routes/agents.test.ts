@@ -53,9 +53,60 @@ describe('routes /v1/agents', () => {
       const body = res.json();
       expect(body.code).toBe(0);
       expect(body.data.name).toBe('Echo');
+      // v6.3.1: 默认 null
+      expect(body.data.contextWindow).toBeNull();
       // 验证真持久化
       const got = app.agents.get('a-1');
       expect(got?.name).toBe('Echo');
+    });
+
+    it('v6.3.1: 传 contextWindow → 持久化 + 回显', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/agents',
+        payload: {
+          id: 'a-2',
+          name: 'Qwen',
+          baseUrl: 'http://localhost:11434/v1',
+          model: 'qwen3.5:4b',
+          contextWindow: 65536,
+        },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.data.contextWindow).toBe(65536);
+      expect(app.agents.get('a-2')?.context_window).toBe(65536);
+    });
+
+    it('v6.3.1: contextWindow 越界 > 2_000_000 → 400', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/agents',
+        payload: {
+          id: 'a-3',
+          name: 'Big',
+          baseUrl: 'http://x/v1',
+          model: 'm',
+          contextWindow: 2_000_001,
+        },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('v6.3.1: contextWindow = null 允许', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/agents',
+        payload: {
+          id: 'a-4',
+          name: 'Null',
+          baseUrl: 'http://x/v1',
+          model: 'm',
+          contextWindow: null,
+        },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().data.contextWindow).toBeNull();
     });
 
     it('缺必填字段 → 400 invalid_body', async () => {

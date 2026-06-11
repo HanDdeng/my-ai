@@ -13,4 +13,11 @@ describe('LLM factory', () => {
   it('未知 provider → 返回 undefined', () => {
     expect(getFactory('anthropic' as never)).toBeUndefined();
   });
+
+  it('v6.3.1: factory 透传 contextWindow', () => {
+    const f = getFactory('openai-compatible');
+    expect(f).toBeDefined();
+    const client = f!({ baseUrl: 'http://x/v1', model: 'm', contextWindow: 32768 });
+    expect(client).toBeInstanceOf(OpenAICompatibleLLMClient);
+  });
 });

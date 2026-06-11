@@ -1,5 +1,6 @@
 // LLM provider factory：v6.1 拆 Map<provider, factory> 可插拔。
 // MockLLMClient 不在 factories 注册（CI 通过依赖注入直接构造）。
+// v6.3.1: factory 透传 contextWindow → num_ctx（Ollama）。
 import type { LLMClient } from './types.js';
 import { OpenAICompatibleLLMClient, type OpenAICompatibleConfig } from './openai-compatible.js';
 
@@ -20,6 +21,10 @@ const factories = new Map<Provider, Factory>([
       }
       if (typeof cfg.maxTokens === 'number') {
         c.maxTokens = cfg.maxTokens;
+      }
+      // v6.3.1: 透传 contextWindow。
+      if (typeof cfg.contextWindow === 'number') {
+        c.contextWindow = cfg.contextWindow;
       }
       return new OpenAICompatibleLLMClient(c);
     },

@@ -1,21 +1,24 @@
--- v6.1 起步 schema_version=1。后续 ALTER TABLE 加新字段；不实现自动迁移。
+-- v6.1 起步 schema_version=1；v6.3.1 加 context_window → schema_version=2。
+-- 后续 ALTER TABLE 加新字段；不实现自动迁移。loud fail on schema mismatch。
 -- 首启动时执行；后续启动跳过（靠 schema_version 判定）。
 
 CREATE TABLE IF NOT EXISTS agents (
-  id            TEXT    PRIMARY KEY,
-  name          TEXT    NOT NULL UNIQUE,
-  description   TEXT    NOT NULL DEFAULT '',
-  llm_provider  TEXT    NOT NULL DEFAULT 'openai-compatible',
-  base_url      TEXT    NOT NULL,
-  model         TEXT    NOT NULL,
-  max_tokens    INTEGER,
-  enabled_api   INTEGER NOT NULL DEFAULT 0,
-  system_prompt TEXT    NOT NULL DEFAULT '',
-  capabilities  TEXT    NOT NULL DEFAULT '[]',
-  created_at    TEXT    NOT NULL,
-  updated_at    TEXT    NOT NULL,
+  id              TEXT    PRIMARY KEY,
+  name            TEXT    NOT NULL UNIQUE,
+  description     TEXT    NOT NULL DEFAULT '',
+  llm_provider    TEXT    NOT NULL DEFAULT 'openai-compatible',
+  base_url        TEXT    NOT NULL,
+  model           TEXT    NOT NULL,
+  max_tokens      INTEGER,
+  context_window  INTEGER,
+  enabled_api     INTEGER NOT NULL DEFAULT 0,
+  system_prompt   TEXT    NOT NULL DEFAULT '',
+  capabilities    TEXT    NOT NULL DEFAULT '[]',
+  created_at      TEXT    NOT NULL,
+  updated_at      TEXT    NOT NULL,
   CHECK (llm_provider = 'openai-compatible'),
   CHECK (max_tokens IS NULL OR (max_tokens >= 1 AND max_tokens <= 32000)),
+  CHECK (context_window IS NULL OR (context_window >= 1 AND context_window <= 2000000)),
   CHECK (length(name) > 0 AND length(name) <= 64),
   CHECK (length(description) <= 256),
   CHECK (length(model) > 0 AND length(model) <= 128),

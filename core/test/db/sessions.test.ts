@@ -25,6 +25,7 @@ describe('SessionsDAO', () => {
       base_url: 'http://localhost:11434/v1',
       model: 'qwen2.5:7b',
       max_tokens: null,
+      context_window: null,
       enabled_api: 0,
       system_prompt: '',
       capabilities: '[]',

@@ -187,5 +187,34 @@ describe('routes /v1/sessions/:id/messages', () => {
       expect(res.statusCode).toBe(502);
       expect(res.json().message).toBe('upstream_error');
     });
+
+    it('v6.3.1: agent.contextWindow → num_ctx 进 fetch body', async () => {
+      await seedAgentAndSession();
+      // 直接通过 DAO 设置 context_window（不走 zod 校验路径）
+      const agentsDao = (app as unknown as { agents: AgentsDAO }).agents;
+      const existing = agentsDao.get('a-1');
+      expect(existing).not.toBeNull();
+      agentsDao.update('a-1', {
+        context_window: 131072,
+        updated_at: new Date().toISOString(),
+      });
+
+      const fetchMock = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/sessions/s-1/messages',
+        headers: { 'x-internal-client-key': 'ck' },
+        payload: { id: randomUUID(), content: 'hi' },
+      });
+      expect(res.statusCode).toBe(200);
+      const [, init] = fetchMock.mock.calls[0]!;
+      const reqBody = JSON.parse((init as RequestInit).body as string);
+      expect(reqBody.num_ctx).toBe(131072);
+    });
   });
 });

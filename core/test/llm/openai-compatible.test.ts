@@ -162,4 +162,41 @@ describe('OpenAICompatibleLLMClient', () => {
     const body = JSON.parse((init as RequestInit).body as string);
     expect(body.max_tokens).toBe(500);
   });
+
+  it('v6.3.1: cfg.contextWindow 存在 → body 写入 num_ctx', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'x' } }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new OpenAICompatibleLLMClient({
+      baseUrl: 'http://x/v1',
+      model: 'm',
+      contextWindow: 65536,
+    });
+    await client.chat({ model: 'm', messages: [] });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.num_ctx).toBe(65536);
+  });
+
+  it('v6.3.1: cfg.contextWindow 缺失 → body 不写 num_ctx 字段', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'x' } }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new OpenAICompatibleLLMClient({
+      baseUrl: 'http://x/v1',
+      model: 'm',
+    });
+    await client.chat({ model: 'm', messages: [] });
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.num_ctx).toBeUndefined();
+  });
 });

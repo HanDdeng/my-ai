@@ -1,8 +1,8 @@
 // /v1/agents 列表 + 新建。
-// v1 走 registry 内存；v6.1 走 DB。
+// v1 走 registry 内存；v6.1 走 DB；v6.3.1 新增 contextWindow 字段。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { AgentsDAO } from '../db/agents.js';
+import { type AgentsDAO } from '../db/agents.js';
 import { HttpError } from '../errors.js';
 import type { AgentRow } from '../db/agents.js';
 
@@ -14,6 +14,9 @@ const CreateAgentBody = z.object({
   baseUrl: z.string().min(1).max(512),
   model: z.string().min(1).max(128),
   maxTokens: z.number().int().min(1).max(32000).nullable().default(null),
+  // v6.3.1: context window 大小；与 maxTokens（per-response）区分。
+  // 上限 2_000_000 覆盖 1M+ context window 模型。
+  contextWindow: z.number().int().min(1).max(2_000_000).nullable().default(null),
   enabledApi: z.boolean().default(false),
   systemPrompt: z.string().max(8192).default(''),
   capabilities: z.array(z.string()).default([]),
@@ -28,6 +31,7 @@ function rowToAgent(row: AgentRow) {
     baseUrl: row.base_url,
     model: row.model,
     maxTokens: row.max_tokens,
+    contextWindow: row.context_window,
     enabledApi: row.enabled_api === 1,
     systemPrompt: row.system_prompt,
     capabilities: JSON.parse(row.capabilities) as string[],
@@ -44,7 +48,7 @@ export async function agentRoutes(app: FastifyInstance) {
     return { data: rows.map(rowToAgent), code: 0, message: 'ok' as const };
   });
 
-  app.post('/v1/agents', async (req, reply) => {
+  app.post('/v1/agents', async (req, _reply) => {
     const parsed = CreateAgentBody.safeParse(req.body);
     if (!parsed.success) {
       throw new HttpError(400, 'invalid_body');
@@ -58,6 +62,7 @@ export async function agentRoutes(app: FastifyInstance) {
       base_url: parsed.data.baseUrl,
       model: parsed.data.model,
       max_tokens: parsed.data.maxTokens,
+      context_window: parsed.data.contextWindow,
       enabled_api: parsed.data.enabledApi ? 1 : 0,
       system_prompt: parsed.data.systemPrompt,
       capabilities: JSON.stringify(parsed.data.capabilities),
