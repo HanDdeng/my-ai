@@ -1,5 +1,8 @@
 // gateway 透传 /v1/agents 到 core；v3 起走新响应包装，v6.2 扩 4 端点（POST/GET-id/PATCH/DELETE）。
-// 错误码透传：core 4xx/5xx 整包透传（status + data 字段）；gateway 网络层异常 → 502 upstream_error。
+// v6.2 (Option B) 行为：
+//   - 2xx：core 整包 {data, code: 0, message: 'ok'} → 解出 .data 再走 ok() 包装。
+//   - 4xx/5xx：core 整包 {data, code: 4xx/5xx, message: 'xxx'} → 真透传（status + body 原样）。
+//   - gateway 网络层异常：502 upstream_error。
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { ok, err } from '../response.js';
 import type { CoreClient } from '../clients/core.js';
@@ -16,8 +19,10 @@ export async function agentRoutes(app: FastifyInstance, core: CoreClient) {
   app.get('/v1/agents', async (req, reply) => {
     const ck = getClientKey(req);
     try {
-      const { status, data } = await core.listAgents(ck);
-      return reply.code(status).send(ok(data));
+      const { status, body } = await core.listAgents(ck);
+      // 2xx：解出 .data 再 ok() 包装；4xx/5xx：整包真透传
+      const payload = status < 400 ? ok((body as { data?: unknown })?.data ?? null) : body;
+      return reply.code(status).send(payload);
     } catch (e) {
       req.log.error({ err: e }, 'listAgents failed');
       return reply.code(502).send(err(502, 'upstream_error'));
@@ -28,8 +33,9 @@ export async function agentRoutes(app: FastifyInstance, core: CoreClient) {
   app.post('/v1/agents', async (req, reply) => {
     const ck = getClientKey(req);
     try {
-      const { status, data } = await core.createAgent(ck, req.body);
-      return reply.code(status).send(ok(data));
+      const { status, body } = await core.createAgent(ck, req.body);
+      const payload = status < 400 ? ok((body as { data?: unknown })?.data ?? null) : body;
+      return reply.code(status).send(payload);
     } catch (e) {
       req.log.error({ err: e }, 'createAgent failed');
       return reply.code(502).send(err(502, 'upstream_error'));
@@ -40,8 +46,9 @@ export async function agentRoutes(app: FastifyInstance, core: CoreClient) {
   app.get<{ Params: { id: string } }>('/v1/agents/:id', async (req, reply) => {
     const ck = getClientKey(req);
     try {
-      const { status, data } = await core.getAgent(ck, req.params.id);
-      return reply.code(status).send(ok(data));
+      const { status, body } = await core.getAgent(ck, req.params.id);
+      const payload = status < 400 ? ok((body as { data?: unknown })?.data ?? null) : body;
+      return reply.code(status).send(payload);
     } catch (e) {
       req.log.error({ err: e, id: req.params.id }, 'getAgent failed');
       return reply.code(502).send(err(502, 'upstream_error'));
@@ -52,8 +59,9 @@ export async function agentRoutes(app: FastifyInstance, core: CoreClient) {
   app.patch<{ Params: { id: string } }>('/v1/agents/:id', async (req, reply) => {
     const ck = getClientKey(req);
     try {
-      const { status, data } = await core.updateAgent(ck, req.params.id, req.body);
-      return reply.code(status).send(ok(data));
+      const { status, body } = await core.updateAgent(ck, req.params.id, req.body);
+      const payload = status < 400 ? ok((body as { data?: unknown })?.data ?? null) : body;
+      return reply.code(status).send(payload);
     } catch (e) {
       req.log.error({ err: e, id: req.params.id }, 'updateAgent failed');
       return reply.code(502).send(err(502, 'upstream_error'));
@@ -64,8 +72,9 @@ export async function agentRoutes(app: FastifyInstance, core: CoreClient) {
   app.delete<{ Params: { id: string } }>('/v1/agents/:id', async (req, reply) => {
     const ck = getClientKey(req);
     try {
-      const { status, data } = await core.deleteAgent(ck, req.params.id);
-      return reply.code(status).send(ok(data));
+      const { status, body } = await core.deleteAgent(ck, req.params.id);
+      const payload = status < 400 ? ok((body as { data?: unknown })?.data ?? null) : body;
+      return reply.code(status).send(payload);
     } catch (e) {
       req.log.error({ err: e, id: req.params.id }, 'deleteAgent failed');
       return reply.code(502).send(err(502, 'upstream_error'));

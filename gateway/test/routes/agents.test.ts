@@ -1,5 +1,7 @@
 // /v1/agents 路由层单测：5 端点（GET 列表 / POST / GET-id / PATCH / DELETE）+ 错误码透传矩阵。
 // 用 app.decorate('core', mockCore) 注入假 CoreClient；不真实发请求。
+// v6.2 (Option B)：mockCore 返回 { status, body: <core 整包> }；2xx 时 handler 解 .data 包 ok()，
+// 4xx/5xx 时 handler 真透传 core body。
 import { describe, it, expect, vi } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { openDatabase } from '@/db.js';
@@ -9,35 +11,35 @@ import { authMiddleware } from '@/auth/middleware.js';
 import { agentRoutes } from '@/routes/agents.js';
 import type { CoreClient } from '@/clients/core.js';
 
-type CoreResponse = { status: number; data: unknown };
+// 2xx 包一个完整 success 整包；4xx/5xx 包一个完整 error 整包
+type CoreResponse = { status: number; body: unknown };
 
 // 包装函数：vitest 2.x 的 vi 不能直接 vi(fn) 调用；必须 vi.fn().mockImplementation(fn)。
 function mockImpl<T extends (...args: never[]) => unknown>(fn: T) {
   return vi.fn().mockImplementation(fn);
 }
 
+// 工厂：默认每个方法回 2xx + 整包 success；测试可传入 responses 覆盖。
 function buildMockCore(responses: Record<string, CoreResponse> = {}): CoreClient {
+  const ok = (data: unknown): CoreResponse => ({
+    status: 200,
+    body: { data, code: 0, message: 'ok' },
+  });
   return {
-    listAgents: mockImpl(async (_ck: string) => responses.listAgents ?? { status: 200, data: [] }),
+    listAgents: mockImpl(async (_ck: string) => responses.listAgents ?? ok([])),
     createAgent: mockImpl(
-      async (_ck: string, _body: unknown) =>
-        responses.createAgent ?? { status: 200, data: { id: 'new' } },
+      async (_ck: string, _body: unknown) => responses.createAgent ?? ok({ id: 'new' }),
     ),
-    getAgent: mockImpl(
-      async (_ck: string, _id: string) => responses.getAgent ?? { status: 200, data: { id: 'a1' } },
-    ),
+    getAgent: mockImpl(async (_ck: string, _id: string) => responses.getAgent ?? ok({ id: 'a1' })),
     updateAgent: mockImpl(
-      async (_ck: string, _id: string, _body: unknown) =>
-        responses.updateAgent ?? { status: 200, data: { id: 'a1' } },
+      async (_ck: string, _id: string, _body: unknown) => responses.updateAgent ?? ok({ id: 'a1' }),
     ),
-    deleteAgent: mockImpl(
-      async (_ck: string, _id: string) => responses.deleteAgent ?? { status: 200, data: null },
-    ),
-    createSession: mockImpl(async () => ({ status: 200, data: null })),
-    getSession: mockImpl(async () => ({ status: 200, data: null })),
-    deleteSession: mockImpl(async () => ({ status: 200, data: null })),
-    listMessages: mockImpl(async () => ({ status: 200, data: [] })),
-    postMessage: mockImpl(async () => ({ status: 200, data: null })),
+    deleteAgent: mockImpl(async (_ck: string, _id: string) => responses.deleteAgent ?? ok(null)),
+    createSession: mockImpl(async () => ok(null)),
+    getSession: mockImpl(async () => ok(null)),
+    deleteSession: mockImpl(async () => ok(null)),
+    listMessages: mockImpl(async () => ok([])),
+    postMessage: mockImpl(async () => ok(null)),
     health: mockImpl(async () => ({ ok: true, service: 'core' })),
   } as unknown as CoreClient;
 }
@@ -70,8 +72,10 @@ async function buildApp(
 }
 
 describe('/v1/agents routes', () => {
-  it('GET /v1/agents：200 + 透传 core.data', async () => {
-    const core = buildMockCore({ listAgents: { status: 200, data: [{ id: 'a1' }] } });
+  it('GET /v1/agents：200 + 解 core.data 包 ok()', async () => {
+    const core = buildMockCore({
+      listAgents: { status: 200, body: { data: [{ id: 'a1' }], code: 0, message: 'ok' } },
+    });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
       method: 'GET',
@@ -82,9 +86,12 @@ describe('/v1/agents routes', () => {
     expect(res.json()).toEqual({ data: [{ id: 'a1' }], code: 0, message: 'ok' });
   });
 
-  it('POST /v1/agents：200 + 透传 core.data', async () => {
+  it('POST /v1/agents：200 + 解 core.data 包 ok()', async () => {
     const core = buildMockCore({
-      createAgent: { status: 200, data: { id: 'a-new', name: 'New' } },
+      createAgent: {
+        status: 200,
+        body: { data: { id: 'a-new', name: 'New' }, code: 0, message: 'ok' },
+      },
     });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
@@ -97,8 +104,10 @@ describe('/v1/agents routes', () => {
     expect(res.json()).toEqual({ data: { id: 'a-new', name: 'New' }, code: 0, message: 'ok' });
   });
 
-  it('GET /v1/agents/{id}：200 + 透传 core.data', async () => {
-    const core = buildMockCore({ getAgent: { status: 200, data: { id: 'a1', name: 'Echo' } } });
+  it('GET /v1/agents/{id}：200 + 解 core.data 包 ok()', async () => {
+    const core = buildMockCore({
+      getAgent: { status: 200, body: { data: { id: 'a1', name: 'Echo' }, code: 0, message: 'ok' } },
+    });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
       method: 'GET',
@@ -109,9 +118,12 @@ describe('/v1/agents routes', () => {
     expect(res.json()).toEqual({ data: { id: 'a1', name: 'Echo' }, code: 0, message: 'ok' });
   });
 
-  it('PATCH /v1/agents/{id}：200 + 透传 core.data', async () => {
+  it('PATCH /v1/agents/{id}：200 + 解 core.data 包 ok()', async () => {
     const core = buildMockCore({
-      updateAgent: { status: 200, data: { id: 'a1', name: 'Renamed' } },
+      updateAgent: {
+        status: 200,
+        body: { data: { id: 'a1', name: 'Renamed' }, code: 0, message: 'ok' },
+      },
     });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
@@ -124,8 +136,10 @@ describe('/v1/agents routes', () => {
     expect(res.json()).toEqual({ data: { id: 'a1', name: 'Renamed' }, code: 0, message: 'ok' });
   });
 
-  it('DELETE /v1/agents/{id}：200 + 透传 core.data', async () => {
-    const core = buildMockCore({ deleteAgent: { status: 200, data: null } });
+  it('DELETE /v1/agents/{id}：200 + 解 core.data 包 ok()', async () => {
+    const core = buildMockCore({
+      deleteAgent: { status: 200, body: { data: null, code: 0, message: 'ok' } },
+    });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
       method: 'DELETE',
@@ -136,8 +150,13 @@ describe('/v1/agents routes', () => {
     expect(res.json()).toEqual({ data: null, code: 0, message: 'ok' });
   });
 
-  it('错误码透传：core 4xx 整包透传（status + data）', async () => {
-    const core = buildMockCore({ getAgent: { status: 404, data: null } });
+  it('错误码透传：core 4xx 整包透传（status + body 真透传）', async () => {
+    const core = buildMockCore({
+      getAgent: {
+        status: 404,
+        body: { data: null, code: 404, message: 'agent_not_found' },
+      },
+    });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
       method: 'GET',
@@ -145,11 +164,16 @@ describe('/v1/agents routes', () => {
       headers: { 'x-client-key': ckHeader },
     });
     expect(res.statusCode).toBe(404);
-    expect(res.json().data).toBeNull();
+    expect(res.json()).toEqual({ data: null, code: 404, message: 'agent_not_found' });
   });
 
-  it('错误码透传：core 5xx 整包透传', async () => {
-    const core = buildMockCore({ getAgent: { status: 502, data: null } });
+  it('错误码透传：core 5xx 整包透传（status + body 真透传）', async () => {
+    const core = buildMockCore({
+      getAgent: {
+        status: 502,
+        body: { data: null, code: 502, message: 'upstream_error' },
+      },
+    });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
       method: 'GET',
@@ -157,6 +181,7 @@ describe('/v1/agents routes', () => {
       headers: { 'x-client-key': ckHeader },
     });
     expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({ data: null, code: 502, message: 'upstream_error' });
   });
 
   it('gateway 网络层异常 → 502 upstream_error', async () => {

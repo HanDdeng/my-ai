@@ -1,5 +1,7 @@
 // /v1/sessions 路由层单测：3 端点（POST / GET-id / DELETE）+ 错误码透传矩阵。
 // 用 app.decorate('core', mockCore) 注入假 CoreClient；不真实发请求。
+// v6.2 (Option B)：mockCore 返回 { status, body: <core 整包> }；2xx 解 .data 包 ok()，
+// 4xx/5xx 真透传 core body。
 import { describe, it, expect, vi } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { openDatabase } from '@/db.js';
@@ -9,7 +11,7 @@ import { authMiddleware } from '@/auth/middleware.js';
 import { sessionRoutes } from '@/routes/sessions.js';
 import type { CoreClient } from '@/clients/core.js';
 
-type CoreResponse = { status: number; data: unknown };
+type CoreResponse = { status: number; body: unknown };
 
 // 包装函数：vitest 2.x 的 vi 不能直接 vi(fn) 调用；必须 vi.fn().mockImplementation(fn)。
 function mockImpl<T extends (...args: never[]) => unknown>(fn: T) {
@@ -17,25 +19,28 @@ function mockImpl<T extends (...args: never[]) => unknown>(fn: T) {
 }
 
 function buildMockCore(responses: Record<string, CoreResponse> = {}): CoreClient {
+  const ok = (data: unknown): CoreResponse => ({
+    status: 200,
+    body: { data, code: 0, message: 'ok' },
+  });
   return {
-    listAgents: mockImpl(async () => ({ status: 200, data: [] })),
-    createAgent: mockImpl(async () => ({ status: 200, data: null })),
-    getAgent: mockImpl(async () => ({ status: 200, data: null })),
-    updateAgent: mockImpl(async () => ({ status: 200, data: null })),
-    deleteAgent: mockImpl(async () => ({ status: 200, data: null })),
+    listAgents: mockImpl(async () => ok([])),
+    createAgent: mockImpl(async () => ok(null)),
+    getAgent: mockImpl(async () => ok(null)),
+    updateAgent: mockImpl(async () => ok(null)),
+    deleteAgent: mockImpl(async () => ok(null)),
     createSession: mockImpl(
       async (_ck: string, _b: unknown) =>
-        responses.createSession ?? { status: 200, data: { id: 's1', agentId: 'a1' } },
+        responses.createSession ?? ok({ id: 's1', agentId: 'a1' }),
     ),
     getSession: mockImpl(
-      async (_ck: string, _id: string) =>
-        responses.getSession ?? { status: 200, data: { id: 's1' } },
+      async (_ck: string, _id: string) => responses.getSession ?? ok({ id: 's1' }),
     ),
     deleteSession: mockImpl(
-      async (_ck: string, _id: string) => responses.deleteSession ?? { status: 200, data: null },
+      async (_ck: string, _id: string) => responses.deleteSession ?? ok(null),
     ),
-    listMessages: mockImpl(async () => ({ status: 200, data: [] })),
-    postMessage: mockImpl(async () => ({ status: 200, data: null })),
+    listMessages: mockImpl(async () => ok([])),
+    postMessage: mockImpl(async () => ok(null)),
     health: mockImpl(async () => ({ ok: true, service: 'core' })),
   } as unknown as CoreClient;
 }
@@ -66,9 +71,12 @@ async function buildApp(core: CoreClient): Promise<{ app: FastifyInstance; ckHea
 }
 
 describe('/v1/sessions routes', () => {
-  it('POST /v1/sessions：200 + 透传 core.data', async () => {
+  it('POST /v1/sessions：200 + 解 core.data 包 ok()', async () => {
     const core = buildMockCore({
-      createSession: { status: 200, data: { id: 's1', agentId: 'a1' } },
+      createSession: {
+        status: 200,
+        body: { data: { id: 's1', agentId: 'a1' }, code: 0, message: 'ok' },
+      },
     });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
@@ -81,8 +89,13 @@ describe('/v1/sessions routes', () => {
     expect(res.json()).toEqual({ data: { id: 's1', agentId: 'a1' }, code: 0, message: 'ok' });
   });
 
-  it('GET /v1/sessions/{id}：200 + 透传 core.data', async () => {
-    const core = buildMockCore({ getSession: { status: 200, data: { id: 's1', agentId: 'a1' } } });
+  it('GET /v1/sessions/{id}：200 + 解 core.data 包 ok()', async () => {
+    const core = buildMockCore({
+      getSession: {
+        status: 200,
+        body: { data: { id: 's1', agentId: 'a1' }, code: 0, message: 'ok' },
+      },
+    });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
       method: 'GET',
@@ -93,8 +106,10 @@ describe('/v1/sessions routes', () => {
     expect(res.json()).toEqual({ data: { id: 's1', agentId: 'a1' }, code: 0, message: 'ok' });
   });
 
-  it('DELETE /v1/sessions/{id}：200 + 透传 core.data', async () => {
-    const core = buildMockCore({ deleteSession: { status: 200, data: null } });
+  it('DELETE /v1/sessions/{id}：200 + 解 core.data 包 ok()', async () => {
+    const core = buildMockCore({
+      deleteSession: { status: 200, body: { data: null, code: 0, message: 'ok' } },
+    });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
       method: 'DELETE',
@@ -106,7 +121,12 @@ describe('/v1/sessions routes', () => {
   });
 
   it('错误码透传：core 404 session_not_found 整包透传', async () => {
-    const core = buildMockCore({ getSession: { status: 404, data: null } });
+    const core = buildMockCore({
+      getSession: {
+        status: 404,
+        body: { data: null, code: 404, message: 'session_not_found' },
+      },
+    });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
       method: 'GET',
@@ -114,7 +134,7 @@ describe('/v1/sessions routes', () => {
       headers: { 'x-client-key': ckHeader },
     });
     expect(res.statusCode).toBe(404);
-    expect(res.json().data).toBeNull();
+    expect(res.json()).toEqual({ data: null, code: 404, message: 'session_not_found' });
   });
 
   it('gateway 网络层异常 → 502 upstream_error', async () => {

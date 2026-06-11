@@ -3,7 +3,7 @@
 //   1. 头注入：gateway→core 真的挂上 X-Internal-Client-Key（值 = req.clientCtx.id = sha256 hash）
 //   2. 跨 clientKey 共享 session：v6.1 决策 16 —— clientKeyA 创建，clientKeyB GET 同一 session 也能读
 //   3. 网络层异常：mock core 拒连 → gateway 502 upstream_error
-//   4. 错误码端到端：mock core 返回 404 / 409 / 502 → gateway 透传 HTTP status（body 仍走 ok() 包装）
+//   4. 错误码端到端：mock core 返回 404 / 409 → gateway 整包透传 (status + core body)
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'node:http';
 import { openDatabase } from '@/db.js';
@@ -241,7 +241,7 @@ describe('Integration: gateway → core', () => {
     expect(getRes.json().data.id).toBe('s-shared');
   });
 
-  it('错误码端到端：core 返回 409 agent_name_conflict → gateway 透传 HTTP status（body 仍走 ok 包装）', async () => {
+  it('错误码端到端：core 返回 409 agent_name_conflict → gateway 整包透传 (status + body)', async () => {
     const { app, ckA } = await buildApp(mockCoreUrl);
     const res = await app.inject({
       method: 'POST',
@@ -250,11 +250,11 @@ describe('Integration: gateway → core', () => {
       payload: { id: 'x', name: 'duplicate' },
     });
     expect(res.statusCode).toBe(409);
-    // 实际行为：route handler 走 reply.code(status).send(ok(data))，body 仍为成功包装
-    expect(res.json()).toEqual({ data: null, code: 0, message: 'ok' });
+    // v6.2 (Option B)：4xx 真透传 core body，不再 ok() 包装
+    expect(res.json()).toEqual({ data: null, code: 409, message: 'agent_name_conflict' });
   });
 
-  it('错误码端到端：core 返回 404 session_not_found → gateway 透传 HTTP status', async () => {
+  it('错误码端到端：core 返回 404 session_not_found → gateway 整包透传 (status + body)', async () => {
     const { app, ckA } = await buildApp(mockCoreUrl);
     const res = await app.inject({
       method: 'GET',
@@ -262,7 +262,7 @@ describe('Integration: gateway → core', () => {
       headers: { 'x-client-key': ckA },
     });
     expect(res.statusCode).toBe(404);
-    expect(res.json().data).toBeNull();
+    expect(res.json()).toEqual({ data: null, code: 404, message: 'session_not_found' });
   });
 
   it('网络层异常：core 拒连 → gateway 502 upstream_error', async () => {

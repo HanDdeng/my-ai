@@ -1,4 +1,5 @@
 // CoreClient 单元测试：覆盖 listAgents 透传 + 9 个新业务方法 + 错误码矩阵。
+// v6.2 (Option B)：call() 整包保留 core 的 {data, code, message}；4xx 测真透传整包。
 // 集成测走 task 10；本文件仅测 CoreClient 类与 mock core server 的契约。
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'node:http';
@@ -62,11 +63,11 @@ afterAll(async () => {
 });
 
 describe('CoreClient.call()', () => {
-  it('GET /v1/agents 透传 status + data', async () => {
+  it('GET /v1/agents 透传 status + body (整包)', async () => {
     const c = new CoreClient({ baseUrl });
     const result = await c.listAgents('hash-abc');
     expect(result.status).toBe(200);
-    expect(result.data).toEqual([{ id: 'a1', name: 'Echo' }]);
+    expect(result.body).toEqual({ data: [{ id: 'a1', name: 'Echo' }], code: 0, message: 'ok' });
   });
 
   it('挂 X-Internal-Client-Key 头（值 = 传入 clientKey）', async () => {
@@ -79,11 +80,11 @@ describe('CoreClient.call()', () => {
     const c = new CoreClient({ baseUrl });
     const result = await c.getAgent('hash', 'a1');
     expect(result.status).toBe(200);
-    expect(result.data).toEqual({ id: 'a1', name: 'Echo' });
+    expect(result.body).toEqual({ data: { id: 'a1', name: 'Echo' }, code: 0, message: 'ok' });
     expect(lastRequest.url).toBe('/v1/agents/a1');
   });
 
-  it('core 4xx 整包透传（status 原样 + data 为 null）', async () => {
+  it('core 4xx 整包透传（status 原样 + body 整包）', async () => {
     // 临时替换 server 行为
     server.removeAllListeners('request');
     server.on('request', (_req, res) => {
@@ -94,7 +95,7 @@ describe('CoreClient.call()', () => {
     const c = new CoreClient({ baseUrl });
     const result = await c.getAgent('hash', 'nonexistent');
     expect(result.status).toBe(404);
-    expect(result.data).toBeNull();
+    expect(result.body).toEqual({ data: null, code: 404, message: 'agent_not_found' });
     // 恢复默认 server 行为
     server.removeAllListeners('request');
     server.on('request', (req: IncomingMessage, res: ServerResponse) => {

@@ -1,5 +1,7 @@
 // /v1/sessions/{id}/messages 路由层单测：2 端点（GET / POST）+ 错误码透传矩阵。
 // 用 app.decorate('core', mockCore) 注入假 CoreClient；不真实发请求。
+// v6.2 (Option B)：mockCore 返回 { status, body: <core 整包> }；2xx 解 .data 包 ok()，
+// 4xx/5xx 真透传 core body。
 import { describe, it, expect, vi } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { openDatabase } from '@/db.js';
@@ -9,7 +11,7 @@ import { authMiddleware } from '@/auth/middleware.js';
 import { messagesRoutes } from '@/routes/messages.js';
 import type { CoreClient } from '@/clients/core.js';
 
-type CoreResponse = { status: number; data: unknown };
+type CoreResponse = { status: number; body: unknown };
 
 // 包装函数：vitest 2.x 的 vi 不能直接 vi(fn) 调用；必须 vi.fn().mockImplementation(fn)。
 function mockImpl<T extends (...args: never[]) => unknown>(fn: T) {
@@ -17,24 +19,23 @@ function mockImpl<T extends (...args: never[]) => unknown>(fn: T) {
 }
 
 function buildMockCore(responses: Record<string, CoreResponse> = {}): CoreClient {
+  const ok = (data: unknown): CoreResponse => ({
+    status: 200,
+    body: { data, code: 0, message: 'ok' },
+  });
   return {
-    listAgents: mockImpl(async () => ({ status: 200, data: [] })),
-    createAgent: mockImpl(async () => ({ status: 200, data: null })),
-    getAgent: mockImpl(async () => ({ status: 200, data: null })),
-    updateAgent: mockImpl(async () => ({ status: 200, data: null })),
-    deleteAgent: mockImpl(async () => ({ status: 200, data: null })),
-    createSession: mockImpl(async () => ({ status: 200, data: null })),
-    getSession: mockImpl(async () => ({ status: 200, data: null })),
-    deleteSession: mockImpl(async () => ({ status: 200, data: null })),
-    listMessages: mockImpl(
-      async (_ck: string, _sid: string) => responses.listMessages ?? { status: 200, data: [] },
-    ),
+    listAgents: mockImpl(async () => ok([])),
+    createAgent: mockImpl(async () => ok(null)),
+    getAgent: mockImpl(async () => ok(null)),
+    updateAgent: mockImpl(async () => ok(null)),
+    deleteAgent: mockImpl(async () => ok(null)),
+    createSession: mockImpl(async () => ok(null)),
+    getSession: mockImpl(async () => ok(null)),
+    deleteSession: mockImpl(async () => ok(null)),
+    listMessages: mockImpl(async (_ck: string, _sid: string) => responses.listMessages ?? ok([])),
     postMessage: mockImpl(
       async (_ck: string, _sid: string, _b: unknown) =>
-        responses.postMessage ?? {
-          status: 200,
-          data: { userMessage: { id: 'um' }, assistantMessage: { id: 'am' } },
-        },
+        responses.postMessage ?? ok({ userMessage: { id: 'um' }, assistantMessage: { id: 'am' } }),
     ),
     health: mockImpl(async () => ({ ok: true, service: 'core' })),
   } as unknown as CoreClient;
@@ -66,9 +67,12 @@ async function buildApp(core: CoreClient): Promise<{ app: FastifyInstance; ckHea
 }
 
 describe('/v1/sessions/{id}/messages routes', () => {
-  it('GET /v1/sessions/{id}/messages：200 + 透传 core.data（messages 列表）', async () => {
+  it('GET /v1/sessions/{id}/messages：200 + 解 core.data 包 ok()（messages 列表）', async () => {
     const core = buildMockCore({
-      listMessages: { status: 200, data: [{ id: 'm1', role: 'user' }] },
+      listMessages: {
+        status: 200,
+        body: { data: [{ id: 'm1', role: 'user' }], code: 0, message: 'ok' },
+      },
     });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
@@ -80,11 +84,15 @@ describe('/v1/sessions/{id}/messages routes', () => {
     expect(res.json()).toEqual({ data: [{ id: 'm1', role: 'user' }], code: 0, message: 'ok' });
   });
 
-  it('POST /v1/sessions/{id}/messages：200 + 透传 core.data（userMessage + assistantMessage）', async () => {
+  it('POST /v1/sessions/{id}/messages：200 + 解 core.data 包 ok()（userMessage + assistantMessage）', async () => {
     const core = buildMockCore({
       postMessage: {
         status: 200,
-        data: { userMessage: { id: 'um' }, assistantMessage: { id: 'am', content: 'hi' } },
+        body: {
+          data: { userMessage: { id: 'um' }, assistantMessage: { id: 'am', content: 'hi' } },
+          code: 0,
+          message: 'ok',
+        },
       },
     });
     const { app, ckHeader } = await buildApp(core);
@@ -103,7 +111,12 @@ describe('/v1/sessions/{id}/messages routes', () => {
   });
 
   it('错误码透传：core 404 session_not_found 整包透传', async () => {
-    const core = buildMockCore({ listMessages: { status: 404, data: null } });
+    const core = buildMockCore({
+      listMessages: {
+        status: 404,
+        body: { data: null, code: 404, message: 'session_not_found' },
+      },
+    });
     const { app, ckHeader } = await buildApp(core);
     const res = await app.inject({
       method: 'GET',
@@ -111,7 +124,7 @@ describe('/v1/sessions/{id}/messages routes', () => {
       headers: { 'x-client-key': ckHeader },
     });
     expect(res.statusCode).toBe(404);
-    expect(res.json().data).toBeNull();
+    expect(res.json()).toEqual({ data: null, code: 404, message: 'session_not_found' });
   });
 
   it('gateway 网络层异常 → 502 upstream_error', async () => {

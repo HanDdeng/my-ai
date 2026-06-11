@@ -1,6 +1,8 @@
 // 上游 core 的 HTTP 客户端：基于 undici，比 Node 内置 fetch 更轻、控时更细。
 // v6.2：扩 9 个方法 + 统一 call() 辅助挂 X-Internal-Client-Key 头。
 // clientKey 入参 = sha256 hash（v3 middleware req.clientCtx.id 字段；不做重哈希）。
+// v6.2 (Option B)：call() 整包透传 core 的 {data, code, message}，不在 client 层解构；
+// 路由 handler 按 status 决定 ok() 包装 (2xx) 还是原样透传 (4xx/5xx)。
 import { request } from 'undici';
 
 export type CoreClientOptions = {
@@ -18,17 +20,20 @@ export class CoreClient {
   }
 
   /**
-   * 统一调用入口：挂 X-Internal-Client-Key 头 + 处理 HTTP 状态 / body 透传。
-   * - 2xx：返回 { status, data: <.data 字段或 null> }
-   * - 4xx/5xx：原 status 透传 + data = <.data 字段>（gateway handler 整包回包）
+   * 统一调用入口：挂 X-Internal-Client-Key 头 + 整包透传 HTTP status / body。
+   * - 2xx：返回 { status, body: <core 整包 {data, code: 0, message}> }
+   * - 4xx/5xx：返回 { status, body: <core 整包 {data: null, code: 4xx/5xx, message}> }
+   * - 204：body = null
    * - 网络错：throw Error（handler catch → 502 upstream_error）
+   *
+   * 路由层（agents/sessions/messages）按 status 决定 2xx 走 ok() 包装还是 4xx/5xx 真透传。
    */
   private async call(
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
     path: string,
     clientKey: string,
     body?: unknown,
-  ): Promise<{ status: number; data: unknown }> {
+  ): Promise<{ status: number; body: unknown }> {
     // body 字段在 exactOptionalPropertyTypes 下不能显式赋 undefined，用展开绕开。
     const opts = {
       method,
@@ -44,10 +49,11 @@ export class CoreClient {
 
     const status = res.statusCode;
     if (status === 204) {
-      return { status, data: null };
+      return { status, body: null };
     }
-    const json = (await res.body.json()) as { data?: unknown };
-    return { status, data: json.data ?? null };
+    // 整包保留：不解构 .data，handler 按 status 决定如何回包
+    const parsedBody = (await res.body.json()) as unknown;
+    return { status, body: parsedBody };
   }
 
   /**
@@ -68,18 +74,15 @@ export class CoreClient {
 
   // === agents（v3 现状 listAgents 改造 + 4 新 CRUD 方法）===
 
-  async listAgents(clientKey: string): Promise<{ status: number; data: unknown[] }> {
-    return this.call('GET', '/v1/agents', clientKey) as Promise<{
-      status: number;
-      data: unknown[];
-    }>;
+  async listAgents(clientKey: string): Promise<{ status: number; body: unknown }> {
+    return this.call('GET', '/v1/agents', clientKey);
   }
 
-  async createAgent(clientKey: string, body: unknown): Promise<{ status: number; data: unknown }> {
+  async createAgent(clientKey: string, body: unknown): Promise<{ status: number; body: unknown }> {
     return this.call('POST', '/v1/agents', clientKey, body);
   }
 
-  async getAgent(clientKey: string, id: string): Promise<{ status: number; data: unknown }> {
+  async getAgent(clientKey: string, id: string): Promise<{ status: number; body: unknown }> {
     return this.call('GET', `/v1/agents/${encodeURIComponent(id)}`, clientKey);
   }
 
@@ -87,11 +90,11 @@ export class CoreClient {
     clientKey: string,
     id: string,
     body: unknown,
-  ): Promise<{ status: number; data: unknown }> {
+  ): Promise<{ status: number; body: unknown }> {
     return this.call('PATCH', `/v1/agents/${encodeURIComponent(id)}`, clientKey, body);
   }
 
-  async deleteAgent(clientKey: string, id: string): Promise<{ status: number; data: unknown }> {
+  async deleteAgent(clientKey: string, id: string): Promise<{ status: number; body: unknown }> {
     return this.call('DELETE', `/v1/agents/${encodeURIComponent(id)}`, clientKey);
   }
 
@@ -100,15 +103,15 @@ export class CoreClient {
   async createSession(
     clientKey: string,
     body: unknown,
-  ): Promise<{ status: number; data: unknown }> {
+  ): Promise<{ status: number; body: unknown }> {
     return this.call('POST', '/v1/sessions', clientKey, body);
   }
 
-  async getSession(clientKey: string, id: string): Promise<{ status: number; data: unknown }> {
+  async getSession(clientKey: string, id: string): Promise<{ status: number; body: unknown }> {
     return this.call('GET', `/v1/sessions/${encodeURIComponent(id)}`, clientKey);
   }
 
-  async deleteSession(clientKey: string, id: string): Promise<{ status: number; data: unknown }> {
+  async deleteSession(clientKey: string, id: string): Promise<{ status: number; body: unknown }> {
     return this.call('DELETE', `/v1/sessions/${encodeURIComponent(id)}`, clientKey);
   }
 
@@ -117,7 +120,7 @@ export class CoreClient {
   async listMessages(
     clientKey: string,
     sessionId: string,
-  ): Promise<{ status: number; data: unknown }> {
+  ): Promise<{ status: number; body: unknown }> {
     return this.call('GET', `/v1/sessions/${encodeURIComponent(sessionId)}/messages`, clientKey);
   }
 
@@ -125,7 +128,7 @@ export class CoreClient {
     clientKey: string,
     sessionId: string,
     body: unknown,
-  ): Promise<{ status: number; data: unknown }> {
+  ): Promise<{ status: number; body: unknown }> {
     return this.call(
       'POST',
       `/v1/sessions/${encodeURIComponent(sessionId)}/messages`,

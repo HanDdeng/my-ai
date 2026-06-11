@@ -1,5 +1,8 @@
 // gateway 透传 /v1/sessions/{id}/messages 到 core：2 端点（GET / POST）。
-// 错误码透传：core 4xx/5xx 整包透传（status + data 字段）；gateway 网络层异常 → 502 upstream_error。
+// v6.2 (Option B) 行为：
+//   - 2xx：core 整包 {data, code: 0, message: 'ok'} → 解出 .data 再走 ok() 包装。
+//   - 4xx/5xx：core 整包 {data, code: 4xx/5xx, message: 'xxx'} → 真透传。
+//   - gateway 网络层异常：502 upstream_error。
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { ok, err } from '../response.js';
 import type { CoreClient } from '../clients/core.js';
@@ -16,8 +19,9 @@ export async function messagesRoutes(app: FastifyInstance, core: CoreClient) {
   app.get<{ Params: { id: string } }>('/v1/sessions/:id/messages', async (req, reply) => {
     const ck = getClientKey(req);
     try {
-      const { status, data } = await core.listMessages(ck, req.params.id);
-      return reply.code(status).send(ok(data));
+      const { status, body } = await core.listMessages(ck, req.params.id);
+      const payload = status < 400 ? ok((body as { data?: unknown })?.data ?? null) : body;
+      return reply.code(status).send(payload);
     } catch (e) {
       req.log.error({ err: e, sessionId: req.params.id }, 'listMessages failed');
       return reply.code(502).send(err(502, 'upstream_error'));
@@ -28,8 +32,9 @@ export async function messagesRoutes(app: FastifyInstance, core: CoreClient) {
   app.post<{ Params: { id: string } }>('/v1/sessions/:id/messages', async (req, reply) => {
     const ck = getClientKey(req);
     try {
-      const { status, data } = await core.postMessage(ck, req.params.id, req.body);
-      return reply.code(status).send(ok(data));
+      const { status, body } = await core.postMessage(ck, req.params.id, req.body);
+      const payload = status < 400 ? ok((body as { data?: unknown })?.data ?? null) : body;
+      return reply.code(status).send(payload);
     } catch (e) {
       req.log.error({ err: e, sessionId: req.params.id }, 'postMessage failed');
       return reply.code(502).send(err(502, 'upstream_error'));
