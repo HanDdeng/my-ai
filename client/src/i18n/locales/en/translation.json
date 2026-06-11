@@ -101,8 +101,8 @@
     "api": {
       "400": "Bad request",
       "401": "Client key invalid or missing",
-      "403": "Forbidden",
-      "404": "Resource not found (the token may have expired)",
+      "403": "Name conflict",
+      "404": "Resource not found",
       "500": "Gateway internal error",
       "502": "Upstream service unavailable"
     }
@@ -116,5 +116,81 @@
     "zh": "中",
     "en": "EN",
     "aria": "Switch language, current {{current}}"
+  },
+  "office": {
+    "title": "Virtual Office",
+    "addAgent": "+ New agent",
+    "loading": "Loading…",
+    "error": {
+      "loadAgents": "Failed to load agents: {{msg}}",
+      "retry": "Retry"
+    }
+  },
+  "emptyOffice": {
+    "title": "No agents yet",
+    "message": "Please create one to get started",
+    "cta": "New agent"
+  },
+  "agentCard": {
+    "edit": "✎ Edit",
+    "delete": "⌫ Delete",
+    "deleteConfirm": "Delete \"{{name}}\"?"
+  },
+  "agentForm": {
+    "title": { "create": "New Agent", "edit": "Edit Agent" },
+    "section": { "basic": "Basic", "llm": "LLM (OpenAI Compatible)", "system": "System Prompt" },
+    "field": {
+      "name": { "label": "NAME", "required": "Required", "placeholder": "e.g. Echo" },
+      "description": { "label": "DESC", "placeholder": "One-line description" },
+      "baseUrl": {
+        "label": "BASE URL",
+        "required": "Required",
+        "placeholder": "http://localhost:11434/v1"
+      },
+      "model": {
+        "label": "MODEL",
+        "required": "Required",
+        "placeholder": "gpt-4o-mini / qwen2.5:7b"
+      },
+      "maxTokens": { "label": "MAX TOKENS", "placeholder": "Empty = unlimited" },
+      "enabledApi": { "label": "enabled_api", "hint": "Reserved for v6.1" },
+      "systemPrompt": { "label": "SYSTEM PROMPT", "placeholder": "" }
+    },
+    "actions": { "cancel": "Cancel", "delete": "Delete", "create": "Create", "save": "Save" },
+    "errors": {
+      "nameConflict": "Name already taken",
+      "nameLength": "Name length must be 1..64",
+      "baseUrlRequired": "Base URL required",
+      "modelRequired": "Model required",
+      "maxTokensRange": "maxTokens must be 1..32000",
+      "loadFailed": "Failed to load agent: {{msg}}",
+      "notFound": "agent not found",
+      "saveFailed": "Save failed: {{msg}}",
+      "deleteFailed": "Delete failed: {{msg}}"
+    }
+  },
+  "chat": {
+    "title": "{{name}} · session #{{sid}}",
+    "placeholder": "Type a message…",
+    "send": "Send",
+    "sending": "Generating…",
+    "empty": "Send a message to start",
+    "agentDeleted": "agent has been deleted",
+    "errors": {
+      "sendFailed": "Send failed: {{msg}}",
+      "upstream": "Upstream service unavailable",
+      "network": "Network unreachable"
+    }
+  },
+  "confirm": {
+    "deleteAgent": {
+      "title": "Delete Agent",
+      "message": "This cannot be undone. All sessions and messages will also be deleted.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    }
+  },
+  "common": {
+    "close": "Close"
   }
 }

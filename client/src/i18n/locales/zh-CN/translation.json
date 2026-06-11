@@ -101,8 +101,8 @@
     "api": {
       "400": "请求格式有误",
       "401": "客户端标识无效或缺失",
-      "403": "无权限访问",
-      "404": "资源不存在（确认码可能已过期）",
+      "403": "名称冲突",
+      "404": "资源不存在",
       "500": "网关内部错误",
       "502": "上游服务不可用"
     }
@@ -116,5 +116,77 @@
     "zh": "中",
     "en": "EN",
     "aria": "切换语言，当前 {{current}}"
+  },
+  "office": {
+    "title": "虚拟办公室",
+    "addAgent": "+ 新建 agent",
+    "loading": "加载中…",
+    "error": {
+      "loadAgents": "拉取 agent 列表失败：{{msg}}",
+      "retry": "重试"
+    }
+  },
+  "emptyOffice": {
+    "title": "尚无 agent",
+    "message": "请新建一个开始",
+    "cta": "新建 agent"
+  },
+  "agentCard": {
+    "edit": "✎ 编辑",
+    "delete": "⌫ 删除",
+    "deleteConfirm": "确定删除 \"{{name}}\" 吗？"
+  },
+  "agentForm": {
+    "title": { "create": "新建 Agent", "edit": "编辑 Agent" },
+    "section": { "basic": "基础", "llm": "LLM (OpenAI Compatible)", "system": "系统提示" },
+    "field": {
+      "name": { "label": "NAME", "required": "必填", "placeholder": "e.g. Echo" },
+      "description": { "label": "DESC", "placeholder": "一句话说明" },
+      "baseUrl": {
+        "label": "BASE URL",
+        "required": "必填",
+        "placeholder": "http://localhost:11434/v1"
+      },
+      "model": { "label": "MODEL", "required": "必填", "placeholder": "gpt-4o-mini / qwen2.5:7b" },
+      "maxTokens": { "label": "MAX TOKENS", "placeholder": "留空 = 不限" },
+      "enabledApi": { "label": "enabled_api", "hint": "v6.1 预留；不影响行为" },
+      "systemPrompt": { "label": "SYSTEM PROMPT", "placeholder": "" }
+    },
+    "actions": { "cancel": "取消", "delete": "删除", "create": "创建", "save": "保存" },
+    "errors": {
+      "nameConflict": "名称已被占用",
+      "nameLength": "名称长度 1..64",
+      "baseUrlRequired": "Base URL 必填",
+      "modelRequired": "Model 必填",
+      "maxTokensRange": "maxTokens 必须 1..32000",
+      "loadFailed": "加载 agent 失败：{{msg}}",
+      "notFound": "agent 不存在",
+      "saveFailed": "保存失败：{{msg}}",
+      "deleteFailed": "删除失败：{{msg}}"
+    }
+  },
+  "chat": {
+    "title": "{{name}} · session #{{sid}}",
+    "placeholder": "输入消息…",
+    "send": "发送",
+    "sending": "生成中…",
+    "empty": "发条消息开始对话",
+    "agentDeleted": "agent 已被删除",
+    "errors": {
+      "sendFailed": "发送失败：{{msg}}",
+      "upstream": "上游服务不可用",
+      "network": "网络连不上"
+    }
+  },
+  "confirm": {
+    "deleteAgent": {
+      "title": "删除 Agent",
+      "message": "该操作不可撤销，所有会话和消息也会被删除。",
+      "confirm": "删除",
+      "cancel": "取消"
+    }
+  },
+  "common": {
+    "close": "关闭"
   }
 }

@@ -64,6 +64,12 @@
 
   /* 容器 */
   --max-w: 880px;
+
+  /* v6.3 新增：抽屉/气泡/遮罩色 */
+  --user-bubble-bg: #2a4d6e;
+  --agent-bubble-bg: #2a2a2a;
+  --drawer-shadow: -2px 0 12px rgba(0, 0, 0, 0.15);
+  --overlay-bg: rgba(0, 0, 0, 0.4);
 }
 
 /* ----------------------------------------------------------
@@ -917,4 +923,169 @@ body {
 .app-foot .ascii {
   font-family: var(--font-mono);
   color: var(--fg-faint);
+}
+
+/* === v6.3 新增：抽屉动画 === */
+
+/* 右侧滑入 / 滑出 */
+@keyframes dialogSlideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes dialogSlideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* 遮罩淡入淡出 */
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes overlayFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* 抽屉容器（ChatDialog / AgentFormDialog） */
+.dialog-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  z-index: 1000;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--drawer-shadow);
+  display: flex;
+  flex-direction: column;
+  animation: dialogSlideInRight 200ms ease-out forwards;
+}
+.dialog-drawer.is-closing {
+  animation: dialogSlideOutRight 150ms ease-in forwards;
+}
+
+/* 遮罩（半透明黑底） */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: var(--overlay-bg);
+  animation: overlayFadeIn 200ms ease-out forwards;
+}
+.dialog-overlay.is-closing {
+  animation: overlayFadeOut 150ms ease-in forwards;
+}
+
+/* 居中对话框（ConfirmDialog） */
+.dialog-centered {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  width: 420px;
+  max-width: 90vw;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--drawer-shadow);
+  border-radius: 6px;
+  padding: 20px;
+  animation: dialogSlideInRight 200ms ease-out forwards;
+}
+.dialog-centered.is-closing {
+  animation: dialogSlideOutRight 150ms ease-in forwards;
+}
+
+/* Agent 卡片网格 */
+.agent-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.agent-card {
+  position: relative;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 150ms ease-out;
+}
+.agent-card:hover {
+  border-color: var(--accent);
+}
+.agent-card-skeleton {
+  height: 120px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  animation: pulse 1500ms ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 消息气泡（ChatDialog） */
+.message-row-user {
+  display: flex;
+  justify-content: flex-end;
+  margin: 4px 0;
+}
+.message-row-agent {
+  display: flex;
+  justify-content: flex-start;
+  margin: 4px 0;
+}
+.message-bubble {
+  max-width: 75%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  word-wrap: break-word;
+}
+.message-bubble-user {
+  background: var(--user-bubble-bg);
+  color: var(--text);
+}
+.message-bubble-agent {
+  background: var(--agent-bubble-bg);
+  color: var(--text);
+}
+.message-bubble-failed {
+  opacity: 0.6;
+  border: 1px dashed var(--accent);
+}
+
+/* Form 字段错误（AgentFormDialog） */
+.field-error {
+  color: var(--accent);
+  font-size: 12px;
+  margin-top: 4px;
 }
