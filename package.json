@@ -19,6 +19,7 @@
     "clean": "pnpm -r exec rimraf dist node_modules .turbo",
     "setup": "node scripts/setup.mjs",
     "sync:compat": "node scripts/sync-compat.mjs",
+    "sync:versions": "node scripts/sync-versions.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
