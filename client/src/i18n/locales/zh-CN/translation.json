@@ -1,25 +1,25 @@
 {
   "app": {
     "brand": "my-ai",
-    "title": "GATEWAY PAIR",
-    "titleEm": "PAIR",
+    "title": "网关配对",
+    "titleEm": "配对",
     "subtitle": {
-      "line1": "REMOTE PAIRING & AUTH",
+      "line1": "远程配对与鉴权",
       "sep": "·",
-      "line2": "CLIENT {{version}}"
+      "line2": "客户端 {{version}}"
     },
     "footer": {
-      "copy": "© my-ai · local control",
+      "copy": "© my-ai · 本地控制",
       "date": "━━ {{date}}"
     }
   },
   "settings": {
     "label": "Gateway 状态",
-    "statusHead": "STATUS / GATEWAY",
+    "statusHead": "状态 / 网关",
     "urlAria": "Gateway URL",
     "test": "测试",
     "gatewayLabel": "网关",
-    "versionPrefix": "GATEWAY",
+    "versionPrefix": "网关",
     "status": {
       "PAIRING": "正在测试…",
       "HEALTHY": "配对成功",
@@ -44,22 +44,22 @@
     },
     "dialog": {
       "title": "配对网关",
-      "sub": "PAIRING / STEP 01",
+      "sub": "配对流程 / 第 1 步",
       "fields": {
         "url": {
           "label": "Gateway URL",
-          "req": "REQ",
+          "req": "必填",
           "placeholder": "http://127.0.0.1:8787"
         },
         "pairKey": {
           "label": "Pair Key",
-          "opt": "OPT",
+          "opt": "可选",
           "placeholder": "私有模式凭证",
           "aria": "Pair Key (可选)"
         },
         "name": {
           "label": "客户端名",
-          "opt": "OPT",
+          "opt": "可选",
           "placeholder": "alice-laptop",
           "aria": "客户端名"
         }
@@ -109,13 +109,13 @@
     }
   },
   "theme": {
-    "light": "LIGHT",
-    "dark": "DARK",
+    "light": "亮色",
+    "dark": "暗色",
     "ariaCurrent": "当前 {{state}}色主题，点击切换到 {{next}}色"
   },
   "lang": {
     "zh": "中",
-    "en": "EN",
+    "en": "英",
     "aria": "切换语言，当前 {{current}}"
   },
   "office": {
