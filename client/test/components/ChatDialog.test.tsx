@@ -1,7 +1,7 @@
 // ChatDialog 组件测试：useReducer 状态机 + lazy session + 乐观 user message + ESC 关闭。
 // mock 3 lib（agents / sessions / messages）+ useDialogAnimation。
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ApiError } from '@/lib/api.js';
 import * as agentsLib from '@/lib/agents.js';
 import * as sessionsLib from '@/lib/sessions.js';
@@ -117,6 +117,8 @@ describe('<ChatDialog>', () => {
         'ck',
         expect.any(String),
         'hi',
+        // v6.5: 发送中可取消 → postMessage 多传一个 AbortSignal
+        expect.any(AbortSignal),
       ),
     );
     await waitFor(() => expect(screen.getByText('echo')).toBeInTheDocument());
@@ -271,5 +273,116 @@ describe('<ChatDialog>', () => {
     // 1.5s 后：onAgentDeleted 被调用 1 次；onClose 未被直接调用（由父组件 onAgentDeleted 处理后关闭）
     await waitFor(() => expect(onAgentDeleted).toHaveBeenCalledTimes(1), { timeout: 3000 });
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  // v6.5: 发送中要有可视化反馈：按钮显示"生成中… {elapsedSec}s" + 取消按钮。
+  it('v6.5: sending 时按钮显示"生成中… + 计时" + 取消按钮', async () => {
+    vi.mocked(agentsLib.getAgent).mockResolvedValue({
+      id: 'a1',
+      name: 'echo',
+      description: '',
+      llmProvider: 'openai-compatible',
+      baseUrl: 'http://x',
+      model: 'qwen',
+      maxCompletionTokens: null,
+      apiKey: null,
+      contextWindow: null,
+      enabledApi: false,
+      systemPrompt: '',
+      capabilities: [],
+      createdAt: 't',
+      updatedAt: 't',
+    });
+    vi.mocked(sessionsLib.createSession).mockResolvedValue({ id: 's1' } as never);
+    // postMessage 永远 pending，由测试控制何时 resolve
+    let resolvePost!: (v: unknown) => void;
+    vi.mocked(messagesLib.postMessage).mockReturnValue(
+      new Promise(r => {
+        resolvePost = r as never;
+      }) as never,
+    );
+    render(
+      <ChatDialog
+        agentId="a1"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onAgentDeleted={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByPlaceholderText('输入消息…'));
+    fireEvent.change(screen.getByPlaceholderText('输入消息…'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: '发送' }));
+    // 按钮文案变 "生成中…" 之类的 sending 文案
+    await waitFor(() => screen.getByRole('button', { name: /生成中…/ }));
+    // 取消按钮出现
+    expect(screen.getByRole('button', { name: '取消' })).toBeInTheDocument();
+    // 时间推进 3s 后按钮文案应包含数字秒数（正则匹配 \d+s）。
+    // 用 act 包住 setInterval 推进，避免 react 警告 state update 没被 act 包。
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    await waitFor(() => screen.getByRole('button', { name: /生成中…\s*3s/ }));
+    // 让 promise resolve，避免 cleanup 时未处理 promise
+    await act(async () => {
+      resolvePost({
+        userMessage: { id: 'u1', sessionId: 's1', role: 'user', content: 'hi', createdAt: '' },
+        assistantMessage: {
+          id: 'a1',
+          sessionId: 's1',
+          role: 'assistant',
+          content: 'ok',
+          createdAt: '',
+        },
+      });
+    });
+  });
+
+  // v6.5: 点取消 → 错误条显示"已取消"。
+  it('v6.5: 点击取消 → 错误条显示"已取消"', async () => {
+    vi.mocked(agentsLib.getAgent).mockResolvedValue({
+      id: 'a1',
+      name: 'echo',
+      description: '',
+      llmProvider: 'openai-compatible',
+      baseUrl: 'http://x',
+      model: 'qwen',
+      maxCompletionTokens: null,
+      apiKey: null,
+      contextWindow: null,
+      enabledApi: false,
+      systemPrompt: '',
+      capabilities: [],
+      createdAt: 't',
+      updatedAt: 't',
+    });
+    vi.mocked(sessionsLib.createSession).mockResolvedValue({ id: 's1' } as never);
+    vi.mocked(messagesLib.postMessage).mockImplementation(
+      (_gw, _ck, _sid, _c, signal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          );
+        }) as never,
+    );
+    render(
+      <ChatDialog
+        agentId="a1"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onAgentDeleted={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByPlaceholderText('输入消息…'));
+    fireEvent.change(screen.getByPlaceholderText('输入消息…'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: '发送' }));
+    await waitFor(() => screen.getByRole('button', { name: '取消' }));
+    // act 包住 cancel click：abort 触发 promise reject 的 microtask
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    });
+    await waitFor(() => expect(screen.getByText('已取消')).toBeInTheDocument());
+    expect(messagesLib.postMessage).toHaveBeenCalled();
   });
 });

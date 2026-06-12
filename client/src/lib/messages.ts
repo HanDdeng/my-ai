@@ -18,6 +18,8 @@ export function postMessage(
   ck: string,
   sessionId: string,
   content: string,
+  // v6.5: 透传 AbortSignal（ChatDialog 发送中按"取消"会 abort fetch）
+  signal?: AbortSignal,
 ): Promise<PostMessageResponse> {
   return apiFetch<PostMessageResponse>(
     url(gw, `/v1/sessions/${encodeURIComponent(sessionId)}/messages`),
@@ -26,6 +28,7 @@ export function postMessage(
       clientKey: ck,
       // v6.4: 思考强度暂时硬编码 'none'，等表单提供选择器后再接。
       body: { id: randomUUID(), content, reasoningEffort: 'none' as const },
+      ...(signal ? { signal } : {}),
     },
   );
 }

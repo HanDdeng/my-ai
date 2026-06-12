@@ -63,4 +63,25 @@ describe('client/src/lib/messages', () => {
       clientKey: 'ck',
     });
   });
+
+  // v6.5: 发送中支持取消 → postMessage 把外部 AbortSignal 透传给 apiFetch，
+  // apiFetch 再把 signal 传给 fetch。
+  it('postMessage: signal 透传到 apiFetch', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      userMessage: { id: 'u', sessionId: 's', role: 'user', content: 'hi', createdAt: 't' },
+      assistantMessage: {
+        id: 'a',
+        sessionId: 's',
+        role: 'assistant',
+        content: 'ok',
+        createdAt: 't',
+      },
+    });
+    const ctl = new AbortController();
+    await postMessage('http://gw', 'ck', 's', 'hi', ctl.signal);
+    expect(apiFetch).toHaveBeenCalledWith(
+      'http://gw/v1/sessions/s/messages',
+      expect.objectContaining({ signal: ctl.signal }),
+    );
+  });
 });

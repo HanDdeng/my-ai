@@ -193,6 +193,8 @@
     "placeholder": "Type a message…",
     "send": "Send",
     "sending": "Generating…",
+    "cancel": "Cancel",
+    "cancelled": "Cancelled",
     "empty": "Send a message to start",
     "agentDeleted": "agent has been deleted",
     "retry": "Retry",

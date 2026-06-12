@@ -1096,3 +1096,21 @@ body {
   font-size: 12px;
   margin-top: 4px;
 }
+
+/* v6.5: 发送中 spinner（与文本内联，圆环 + 旋转动画） */
+.spinner {
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 0.4em;
+  vertical-align: -0.1em;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

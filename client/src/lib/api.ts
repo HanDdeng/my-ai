@@ -27,6 +27,8 @@ export type ApiFetchOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'; // v6.3: 加 'PATCH'
   body?: unknown;
   clientKey?: string | null;
+  // v6.5: 调用方可传 AbortSignal 取消 fetch（用于"发送中按取消"等场景）
+  signal?: AbortSignal;
 };
 
 // 规范化 URL：trim、自动补 http://、去末尾多余 /。
@@ -51,6 +53,10 @@ export async function apiFetch<T>(url: string, opts: ApiFetchOptions = {}): Prom
     method: opts.method ?? 'GET',
     headers,
   };
+  // v6.5: 透传 AbortSignal（外部取消时立即 abort fetch）
+  if (opts.signal) {
+    init.signal = opts.signal;
+  }
   if (opts.body !== undefined) {
     init.body = JSON.stringify(opts.body);
   }

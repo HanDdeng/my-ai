@@ -190,6 +190,8 @@
     "placeholder": "输入消息…",
     "send": "发送",
     "sending": "生成中…",
+    "cancel": "取消",
+    "cancelled": "已取消",
     "empty": "发条消息开始对话",
     "agentDeleted": "agent 已被删除",
     "retry": "重试",
