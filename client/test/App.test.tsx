@@ -77,7 +77,7 @@ describe('App 状态机', () => {
     // v6.3: 走 router 让 /v1/agents 走 AgentList mock，握手路径走 mockOk。
     vi.stubGlobal(
       'fetch',
-      makeFetchRouter(() => mockOk('0.0.3')),
+      makeFetchRouter(() => mockOk('0.0.4')),
     );
     // 注入 import.meta.env
     vi.stubEnv('VITE_GATEWAY_URL', GATEWAY_URL);
@@ -114,34 +114,34 @@ describe('App 状态机', () => {
   it('fetch 成功 + version out of range → PAIRED + MismatchBanner 显示', async () => {
     vi.stubGlobal(
       'fetch',
-      makeFetchRouter(() => mockOk('1.0.0')),
+      makeFetchRouter(() => mockOk('0.0.3')),
     );
     render(<App />);
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
     expect(await screen.findByText(i18n.t('settings.status.MISMATCH'))).toBeInTheDocument();
-    expect(screen.getByText(/^Gateway v1\.0\.0 超出/)).toBeInTheDocument();
+    expect(screen.getByText(/^Gateway v0\.0\.3 超出/)).toBeInTheDocument();
   });
 
   it('点 banner 关闭按钮 → banner 消失，session 内不重亮', async () => {
     vi.stubGlobal(
       'fetch',
-      makeFetchRouter(() => mockOk('1.0.0')),
+      makeFetchRouter(() => mockOk('0.0.3')),
     );
     render(<App />);
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
     fireEvent.click(screen.getByRole('button', { name: i18n.t('mismatch.dismiss') }));
-    expect(screen.queryByText(/^Gateway v1\.0\.0 超出/)).toBeNull();
+    expect(screen.queryByText(/^Gateway v0\.0\.3 超出/)).toBeNull();
 
     // 推进 5 min fake timer + 触发 heartbeat
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
     });
     // banner 仍不显示
-    expect(screen.queryByText(/^Gateway v1\.0\.0 超出/)).toBeNull();
+    expect(screen.queryByText(/^Gateway v0\.0\.3 超出/)).toBeNull();
   });
 
   it('fetch throw → NEED_REPAIR（Settings 显示"连接失败" + PairBanner 显示）', async () => {
@@ -197,7 +197,7 @@ describe('App 状态机', () => {
   });
 
   it('已配对时点 Settings "测试" → 重跑握手（fetch 再次被调）', async () => {
-    const fetchMock = makeFetchRouter(() => mockOk('0.0.3'));
+    const fetchMock = makeFetchRouter(() => mockOk('0.0.4'));
     vi.stubGlobal('fetch', fetchMock);
     render(<App />);
     await act(async () => {
