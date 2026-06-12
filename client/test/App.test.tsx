@@ -1,9 +1,13 @@
 // App 根组件测试：状态机 + heartbeat + banner 关闭语义 + 配对流程。
 // mock 响应走 v3 新格式：{ data: {ok, service, version, schema}, code, message }
 // secure-store 用 mock 模拟"已配对"/"未配对"两种启动条件。
+//
+// mock 版本号从 COMPAT 派生，避免 matrix range 改动时手工同步测试。
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import i18n from '@/i18n/index.js';
+import { COMPAT } from '@/compat.generated.js';
+import { pickInRange, pickOutOfRange, escapeVersionForRegex } from './_helpers/version-fixture.js';
 
 // vi.mock 会被 hoisted，工厂里用到的引用必须用 vi.hoisted。
 const { mockLoad, mockClear } = vi.hoisted(() => ({
@@ -19,6 +23,11 @@ vi.mock('@/lib/secure-store.js', () => ({
 import App from '@/App.js';
 
 const GATEWAY_URL = 'http://gateway.test';
+const IN_RANGE_VERSION = pickInRange(COMPAT.upstream.gateway);
+const OUT_OF_RANGE_VERSION = pickOutOfRange(COMPAT.upstream.gateway);
+const MISMATCH_TEXT_RE = new RegExp(
+  `^Gateway v${escapeVersionForRegex(OUT_OF_RANGE_VERSION)} 超出`,
+);
 
 // 新格式下的成功响应构造器
 function mockOk(version: string) {
@@ -77,7 +86,7 @@ describe('App 状态机', () => {
     // v6.3: 走 router 让 /v1/agents 走 AgentList mock，握手路径走 mockOk。
     vi.stubGlobal(
       'fetch',
-      makeFetchRouter(() => mockOk('0.0.4')),
+      makeFetchRouter(() => mockOk(IN_RANGE_VERSION)),
     );
     // 注入 import.meta.env
     vi.stubEnv('VITE_GATEWAY_URL', GATEWAY_URL);
@@ -114,34 +123,34 @@ describe('App 状态机', () => {
   it('fetch 成功 + version out of range → PAIRED + MismatchBanner 显示', async () => {
     vi.stubGlobal(
       'fetch',
-      makeFetchRouter(() => mockOk('0.0.3')),
+      makeFetchRouter(() => mockOk(OUT_OF_RANGE_VERSION)),
     );
     render(<App />);
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
     expect(await screen.findByText(i18n.t('settings.status.MISMATCH'))).toBeInTheDocument();
-    expect(screen.getByText(/^Gateway v0\.0\.3 超出/)).toBeInTheDocument();
+    expect(screen.getByText(MISMATCH_TEXT_RE)).toBeInTheDocument();
   });
 
   it('点 banner 关闭按钮 → banner 消失，session 内不重亮', async () => {
     vi.stubGlobal(
       'fetch',
-      makeFetchRouter(() => mockOk('0.0.3')),
+      makeFetchRouter(() => mockOk(OUT_OF_RANGE_VERSION)),
     );
     render(<App />);
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
     fireEvent.click(screen.getByRole('button', { name: i18n.t('mismatch.dismiss') }));
-    expect(screen.queryByText(/^Gateway v0\.0\.3 超出/)).toBeNull();
+    expect(screen.queryByText(MISMATCH_TEXT_RE)).toBeNull();
 
     // 推进 5 min fake timer + 触发 heartbeat
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
     });
     // banner 仍不显示
-    expect(screen.queryByText(/^Gateway v0\.0\.3 超出/)).toBeNull();
+    expect(screen.queryByText(MISMATCH_TEXT_RE)).toBeNull();
   });
 
   it('fetch throw → NEED_REPAIR（Settings 显示"连接失败" + PairBanner 显示）', async () => {
@@ -197,7 +206,7 @@ describe('App 状态机', () => {
   });
 
   it('已配对时点 Settings "测试" → 重跑握手（fetch 再次被调）', async () => {
-    const fetchMock = makeFetchRouter(() => mockOk('0.0.4'));
+    const fetchMock = makeFetchRouter(() => mockOk(IN_RANGE_VERSION));
     vi.stubGlobal('fetch', fetchMock);
     render(<App />);
     await act(async () => {

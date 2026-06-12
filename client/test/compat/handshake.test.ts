@@ -1,10 +1,16 @@
 // 关键差异（v3）：响应改为 { data: {ok, service, version, schema}, code, message }。
 // 握手函数多了一个 clientKey 形参，未配对时传 null。
+//
+// mock 版本号从 COMPAT 派生，避免 matrix range 改动时手工同步测试。
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handshake, type HandshakeStatus } from '@/compat/handshake.js';
 import { COMPAT } from '@/compat.generated.js';
+import { pickInRange, pickOutOfRange } from '../_helpers/version-fixture.js';
 
 const GATEWAY_URL = 'http://gateway.test';
+const RANGE = COMPAT.upstream.gateway;
+const IN_RANGE_VERSION = pickInRange(RANGE);
+const OUT_OF_RANGE_VERSION = pickOutOfRange(RANGE);
 
 function mockOk(version: string) {
   return new Response(
@@ -25,21 +31,21 @@ describe('handshake', () => {
   it('fetch 成功且 version 在范围内 → HEALTHY', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => mockOk('0.0.4')),
+      vi.fn(async () => mockOk(IN_RANGE_VERSION)),
     );
     const result = await handshake(GATEWAY_URL, COMPAT, null);
     expect(result.status).toBe<HandshakeStatus>('HEALTHY');
-    expect(result.version).toBe('0.0.4');
+    expect(result.version).toBe(IN_RANGE_VERSION);
   });
 
   it('fetch 成功但 version 不在范围内 → MISMATCH', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => mockOk('0.0.3')),
+      vi.fn(async () => mockOk(OUT_OF_RANGE_VERSION)),
     );
     const result = await handshake(GATEWAY_URL, COMPAT, null);
     expect(result.status).toBe<HandshakeStatus>('MISMATCH');
-    expect(result.version).toBe('0.0.3');
+    expect(result.version).toBe(OUT_OF_RANGE_VERSION);
   });
 
   it('schema 字段缺失 → MISMATCH（保守）', async () => {
@@ -102,7 +108,7 @@ describe('handshake', () => {
   });
 
   it('有 clientKey 时 fetch 带 X-Client-Key 头', async () => {
-    const fetchSpy = vi.fn<typeof fetch>(async () => mockOk('0.0.4'));
+    const fetchSpy = vi.fn<typeof fetch>(async () => mockOk(IN_RANGE_VERSION));
     vi.stubGlobal('fetch', fetchSpy);
     await handshake(GATEWAY_URL, COMPAT, 'my-client-key-abc');
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined;
