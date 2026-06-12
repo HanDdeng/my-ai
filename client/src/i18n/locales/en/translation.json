@@ -158,7 +158,7 @@
       },
       "apiKey": {
         "label": "API Key",
-        "placeholder": "Empty = use gateway default (env LLM_API_KEY)"
+        "placeholder": "Required; for Ollama or no-key endpoints, enter any placeholder"
       },
       "maxCompletionTokens": {
         "label": "Max Completion Tokens",
@@ -184,7 +184,8 @@
       "loadFailed": "Failed to load agent: {{msg}}",
       "notFound": "agent not found",
       "saveFailed": "Save failed: {{msg}}",
-      "deleteFailed": "Delete failed: {{msg}}"
+      "deleteFailed": "Delete failed: {{msg}}",
+      "apiKeyRequired": "API Key required"
     }
   },
   "chat": {

@@ -1,6 +1,7 @@
 // AgentFormDialog 组件测试：mode=create/edit + 8 字段 + 校验 + 提交 + 409 + 删除。
 // mock 整个 agents lib（与 PairDialog 测试风格一致）。
 // v6.3.1: 新增 contextWindow 字段 + 改用中文 i18n label（"名称" / "基础 URL" / "模型" / "上下文窗口"）。
+// v6.5: apiKey 字段改为前端必填（zod min(1) + UI required）；后端仍 nullable + env fallback。
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ApiError } from '@/lib/api.js';
@@ -99,7 +100,7 @@ describe('<AgentFormDialog>', () => {
     expect(agentsLib.createAgent).not.toHaveBeenCalled();
   });
 
-  it('v6.4: 提交成功 → onSaved（body 含 maxCompletionTokens=4096 + contextWindow=4096 + apiKey=null）', async () => {
+  it('v6.5: apiKey 必填 → 提交成功（body 含 maxCompletionTokens=4096 + contextWindow=4096 + apiKey=sk-test）', async () => {
     vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
     const onSaved = vi.fn();
     render(
@@ -114,6 +115,8 @@ describe('<AgentFormDialog>', () => {
     fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'New' } });
     fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
     fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
+    // v6.5: apiKey 必填（之前可空 → null 回退到 env；现在 schema min(1)）。
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-test' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
     const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
@@ -122,8 +125,30 @@ describe('<AgentFormDialog>', () => {
     expect(body).toHaveProperty('maxCompletionTokens', 4096);
     // v6.4: contextWindow 留空统一落 4096（schema 默认；不再 null）
     expect(body).toHaveProperty('contextWindow', 4096);
-    // v6.4: apiKey 留空 → null（回退到 env LLM_API_KEY）
-    expect(body).toHaveProperty('apiKey', null);
+    // v6.5: apiKey 必填后透传（不再 null）
+    expect(body).toHaveProperty('apiKey', 'sk-test');
+  });
+
+  it('v6.5: apiKey 空 → 阻止提交 + 不调 createAgent', async () => {
+    vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
+    render(
+      <AgentFormDialog
+        mode="create"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    // 填必填字段但 apiKey 不填
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'echo' } });
+    fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x/v1' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
+    fireEvent.click(screen.getByRole('button', { name: '创建' }));
+    // createAgent 不应被调（zod 校验失败 → setSubmitError 提前 return）
+    await waitFor(() => {
+      expect(agentsLib.createAgent).not.toHaveBeenCalled();
+    });
   });
 
   it('v6.4: 填写 apiKey → 提交 body 含该值', async () => {
@@ -162,6 +187,8 @@ describe('<AgentFormDialog>', () => {
     fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
     fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'qwen3.5:4b' } });
     fireEvent.change(screen.getByLabelText('上下文窗口'), { target: { value: '131072' } });
+    // v6.5: apiKey 必填。
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-test' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(agentsLib.createAgent).toHaveBeenCalled());
     const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
@@ -184,6 +211,8 @@ describe('<AgentFormDialog>', () => {
     fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
     // 故意把上下文窗口清空
     fireEvent.change(screen.getByLabelText('上下文窗口'), { target: { value: '' } });
+    // v6.5: apiKey 必填。
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-test' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(agentsLib.createAgent).toHaveBeenCalled());
     const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
@@ -223,6 +252,8 @@ describe('<AgentFormDialog>', () => {
     fireEvent.change(screen.getByLabelText('单次回复 Tokens（最大输出）'), {
       target: { value: '8192' },
     });
+    // v6.5: apiKey 必填。
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-test' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(agentsLib.createAgent).toHaveBeenCalled());
     const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
@@ -244,6 +275,8 @@ describe('<AgentFormDialog>', () => {
     fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'Echo' } });
     fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
     fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
+    // v6.5: apiKey 必填，测试要走到 createAgent 调用也必须填上。
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-test' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(screen.getByText('名称已被占用')).toBeInTheDocument());
     expect(onSaved).not.toHaveBeenCalled();

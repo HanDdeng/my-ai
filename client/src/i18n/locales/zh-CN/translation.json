@@ -155,7 +155,7 @@
       },
       "apiKey": {
         "label": "API Key",
-        "placeholder": "留空 = 用网关默认（env LLM_API_KEY）"
+        "placeholder": "必填；Ollama 等无 key 场景填任意占位符"
       },
       "maxCompletionTokens": {
         "label": "单次回复 Tokens（最大输出）",
@@ -181,7 +181,8 @@
       "loadFailed": "加载 agent 失败：{{msg}}",
       "notFound": "agent 不存在",
       "saveFailed": "保存失败：{{msg}}",
-      "deleteFailed": "删除失败：{{msg}}"
+      "deleteFailed": "删除失败：{{msg}}",
+      "apiKeyRequired": "API Key 必填"
     }
   },
   "chat": {

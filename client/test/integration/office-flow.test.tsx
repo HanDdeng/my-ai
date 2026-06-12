@@ -158,6 +158,8 @@ describe('Integration: office flow', () => {
     fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'Echo' } });
     fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
     fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'qwen' } });
+    // v6.5: apiKey 必填。
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-test' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(screen.getByText('Echo')).toBeInTheDocument());
     // 点卡片
@@ -292,6 +294,8 @@ describe('Integration: office flow', () => {
     // 改名字
     const nameInput = screen.getByLabelText('名称');
     fireEvent.change(nameInput, { target: { value: 'Echo Renamed' } });
+    // v6.5: 旧 agent（apiKey=null）打开编辑时强制要求填一次 apiKey。
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-test' } });
     fireEvent.click(screen.getByRole('button', { name: '保存' }));
     await waitFor(() =>
       expect(agentsLib.updateAgent).toHaveBeenCalledWith(

@@ -6,6 +6,9 @@
 //   新增 apiKey 字段（per-agent 凭据，nullable，回退到 env LLM_API_KEY）；
 //   contextWindow 默认 4096（schema + UI 都对齐：留空 = 4096 落表）；
 //   LLM 字段集内每个 input 都有自己的 label（之前只有共享的 legend）。
+// v6.5: apiKey 改为前端必填（zod min(1) + UI required + label *）；
+//   后端表 api_key 仍 nullable（保兼容 + env LLM_API_KEY fallback 路径不变）；
+//   旧 agent（apiKey=null）打开编辑时会被强制要求填一次才能保存。
 import { useState, useEffect, useRef, type ReactElement, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -31,14 +34,17 @@ const FormSchema = z.object({
     .union([z.literal(''), z.coerce.number().int().min(1).max(2_000_000)])
     .default(''),
   // v6.4: per-agent API key；空 = 回退到 env LLM_API_KEY。
-  apiKey: z.string().max(512).default(''),
+  // v6.5: 前端表单层强制必填（min(1)）— zod 校验失败时 setSubmitError 阻止提交；
+  //   旧 agent（apiKey=null）打开编辑时会被强制要求填一次。后端 core 表仍 nullable + env fallback。
+  apiKey: z.string().min(1, 'apiKeyRequired').max(512),
   enabledApi: z.boolean().default(false),
   systemPrompt: z.string().max(8192).default(''),
 });
 
 // v6.4: 全部 default 改成 4096（maxCompletionTokens 一直 4096；contextWindow 也 4096）；
-//   apiKey 默认空字符串（表单态），提交时转 null。
 //   移除 reasoningEffort（不再是 agent 持久化字段）。
+// v6.5: apiKey 表单态仍以 '' 起步（受控输入），但 schema 升级为 min(1) → 提交时必有值；
+//   不再走 ''→null 的回退路径。
 const EMPTY: Omit<Agent, 'id' | 'createdAt' | 'updatedAt' | 'capabilities'> = {
   name: '',
   description: '',
@@ -148,8 +154,9 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
         // v6.4: contextWindow 留空统一落 4096（schema 默认）；不存 null。
         contextWindow:
           parsed.data.contextWindow === '' ? 4096 : (parsed.data.contextWindow as number),
-        // v6.4: apiKey 留空转 null（= 用 env LLM_API_KEY）；非空 trim 后入库。
-        apiKey: parsed.data.apiKey.trim() === '' ? null : parsed.data.apiKey.trim(),
+        // v6.5: apiKey 前端必填（schema 已 min(1) 校验），trim 后入库；不再走 ''→null fallback。
+        //   后端表仍 nullable + env LLM_API_KEY fallback 路径不变（兼容旧 agent 直接由 core 处理）。
+        apiKey: parsed.data.apiKey.trim(),
       };
       if (mode === 'create') {
         await createAgent(gatewayUrl, clientKey, body);
@@ -367,7 +374,8 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
                       htmlFor="agent-apiKey"
                       style={{ fontSize: 12, color: 'var(--text-muted)' }}
                     >
-                      {t('agentForm.field.apiKey.label')}
+                      {/* v6.5: apiKey 前端必填 — label 加 `*` 与其它必填字段一致；Ollama 等无 key 场景可填任意占位符 */}
+                      {t('agentForm.field.apiKey.label')} *
                     </label>
                     <input
                       id="agent-apiKey"
@@ -379,6 +387,7 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
                       maxLength={512}
                       disabled={submitting}
                       autoComplete="off"
+                      required
                       aria-label={t('agentForm.field.apiKey.label')}
                       style={{
                         width: '100%',
