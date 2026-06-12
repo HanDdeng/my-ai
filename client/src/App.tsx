@@ -79,7 +79,9 @@ function App() {
           setStatus('NEED_PAIR');
         }
       })
-      .catch(() => {
+      .catch((e: unknown) => {
+        // v6.5: 持久化加载失败时静默吞错会导致诊断无门；显式 log 到控制台便于未来排查。
+        console.error('[my-ai] loadSecureConfig failed:', e);
         if (!cancelled) {
           setStatus('NEED_PAIR');
         }

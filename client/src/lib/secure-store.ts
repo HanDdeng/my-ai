@@ -23,22 +23,31 @@ export type SecureConfig = {
   clientName: string | null;
 };
 
-async function getClient() {
-  const stronghold = await Stronghold.load(STORE_PATH, STORE_PASSWORD);
-  return stronghold.createClient(RECORD_NAME);
+async function getOrCreateClient(stronghold: Stronghold) {
+  // Stronghold v2: createClient 在 record 已存在时抛错。
+  // 先 loadClient（已存在场景），失败再 createClient（首次启动）。
+  try {
+    return await stronghold.loadClient(RECORD_NAME);
+  } catch {
+    return await stronghold.createClient(RECORD_NAME);
+  }
 }
 
 // ===== Tauri (Stronghold) 路径 =====
 async function saveToTauri(cfg: SecureConfig): Promise<void> {
-  const client = await getClient();
+  const stronghold = await Stronghold.load(STORE_PATH, STORE_PASSWORD);
+  const client = await getOrCreateClient(stronghold);
   const store = client.getStore();
   const bytes = new TextEncoder().encode(JSON.stringify(cfg));
   // stronghold Store.insert 要求 number[]；用 Array.from 展开 Uint8Array。
   await store.insert(CONFIG_KEY, Array.from(bytes));
+  // 关键：把 in-memory 改动写回磁盘文件，否则进程退出后丢失。
+  await stronghold.save();
 }
 
 async function loadFromTauri(): Promise<SecureConfig | null> {
-  const client = await getClient();
+  const stronghold = await Stronghold.load(STORE_PATH, STORE_PASSWORD);
+  const client = await getOrCreateClient(stronghold);
   const store = client.getStore();
   const bytes = await store.get(CONFIG_KEY);
   if (!bytes) {
@@ -49,9 +58,12 @@ async function loadFromTauri(): Promise<SecureConfig | null> {
 }
 
 async function clearFromTauri(): Promise<void> {
-  const client = await getClient();
+  const stronghold = await Stronghold.load(STORE_PATH, STORE_PASSWORD);
+  const client = await getOrCreateClient(stronghold);
   const store = client.getStore();
   await store.remove(CONFIG_KEY);
+  // 同上：删除也需要 save() 才落盘。
+  await stronghold.save();
 }
 
 // ===== 浏览器 (localStorage) 路径：dev-only fallback =====
