@@ -151,6 +151,35 @@ describe('<AgentFormDialog>', () => {
     });
   });
 
+  it('v6.5: maxCompletionTokens 输 100000 → 通过校验（不再触 max 错）', async () => {
+    // v6.5: Issue #4 解除 ≤32000 上限；UI / zod / DB CHECK 都放宽为 ≥1。
+    // 100_000 必须透传，不再触发 "maxTokens must be 1..32000" 错误。
+    vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
+    render(
+      <AgentFormDialog
+        mode="create"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'echo' } });
+    fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x/v1' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
+    // v6.5: apiKey 必填。
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-test' } });
+    // 把 maxCompletionTokens 设为 100_000（远超旧 32000 上限）。
+    fireEvent.change(screen.getByLabelText('单次回复 Tokens（最大输出）'), {
+      target: { value: '100000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '创建' }));
+    await waitFor(() => expect(agentsLib.createAgent).toHaveBeenCalled());
+    const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
+    const body = call[2] as Record<string, unknown>;
+    expect(body).toHaveProperty('maxCompletionTokens', 100_000);
+  });
+
   it('v6.5.1: apiKey 纯空白 → 阻止提交（zod trim+min(1) 防绕过）', async () => {
     // v6.5.1: HTML required 只查 emptiness → "   " 通过 native 校验；但 zod .trim().min(1)
     //   会把 "   " 转为 "" 后触发 min(1) 失败 → setSubmitError 提前 return，createAgent 不被调。

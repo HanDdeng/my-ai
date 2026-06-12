@@ -4,6 +4,7 @@
 // v6.3.1: PATCH body 新增 contextWindow 字段。
 // v6.3.2: PATCH body 新增 reasoningEffort 字段。
 // v6.4:   PATCH body 新增 apiKey 字段；移除 reasoningEffort 字段（不再持久化）。
+// v6.5:   解除 maxTokens ≤32000 上限（Issue #4）。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type AgentsDAO, type AgentRow } from '../db/agents.js';
@@ -15,7 +16,7 @@ const PatchAgentBody = z
     description: z.string().max(256).optional(),
     baseUrl: z.string().min(1).max(512).optional(),
     model: z.string().min(1).max(128).optional(),
-    maxTokens: z.number().int().min(1).max(32000).nullable().optional(),
+    maxTokens: z.number().int().min(1).nullable().optional(),
     // v6.3.1: context window；与 maxTokens（per-response）区分。
     // v6.4 修复：默认 4096 改为 schema 默认，PATCH 时显式 null 也允许。
     contextWindow: z.number().int().min(1).max(2_000_000).nullable().optional(),

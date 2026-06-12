@@ -1,7 +1,9 @@
 -- v6.1 起步 schema_version=1；v6.3.1 加 context_window → schema_version=2。
 -- v6.3.2 加 reasoning_effort → schema_version=3。
 -- v6.4 加 agents.api_key（per-agent 凭据，nullable，回退到 env LLM_API_KEY） → schema_version=4。
--- 后续 ALTER TABLE 加新字段；不实现自动迁移。loud fail on schema mismatch。
+-- v6.5 放宽 max_tokens（去 ≤32000）→ schema_version=5。
+-- 后续 ALTER TABLE 加新字段；schema bump 时 1) 写 schema.sql 新版本；2) 在 db/migrations/ 加 .sql 跑 4→5 类渐进。
+-- 首启动时执行 schema.sql 落到 SCHEMA_VERSION；老库启动走 migrations/000N_*.sql 顺序应用。
 -- 首启动时执行；后续启动跳过（靠 schema_version 判定）。
 
 CREATE TABLE IF NOT EXISTS agents (
@@ -21,7 +23,7 @@ CREATE TABLE IF NOT EXISTS agents (
   created_at        TEXT    NOT NULL,
   updated_at        TEXT    NOT NULL,
   CHECK (llm_provider = 'openai-compatible'),
-  CHECK (max_tokens IS NULL OR (max_tokens >= 1 AND max_tokens <= 32000)),
+  CHECK (max_tokens IS NULL OR max_tokens >= 1),
   CHECK (context_window IS NULL OR (context_window >= 1 AND context_window <= 2000000)),
   CHECK (reasoning_effort IS NULL OR reasoning_effort IN ('none', 'minimal', 'low', 'medium', 'high', 'xhigh')),
   CHECK (length(name) > 0 AND length(name) <= 64),

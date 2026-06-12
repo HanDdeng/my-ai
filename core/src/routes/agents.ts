@@ -1,6 +1,7 @@
 // /v1/agents 列表 + 新建。
 // v1 走 registry 内存；v6.1 走 DB；v6.3.1 新增 contextWindow 字段；v6.3.2 新增 reasoningEffort 字段；
 // v6.4 新增 apiKey 字段（per-agent 凭据）。
+// v6.5: 解除 maxTokens ≤32000 上限（Issue #4）；仅保留 ≥1。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type AgentsDAO } from '../db/agents.js';
@@ -14,7 +15,7 @@ const CreateAgentBody = z.object({
   llm_provider: z.literal('openai-compatible').default('openai-compatible'),
   baseUrl: z.string().min(1).max(512),
   model: z.string().min(1).max(128),
-  maxTokens: z.number().int().min(1).max(32000).nullable().default(null),
+  maxTokens: z.number().int().min(1).nullable().default(null),
   // v6.3.1: context window 大小；与 maxTokens（per-response）区分。
   // 上限 2_000_000 覆盖 1M+ context window 模型。
   // v6.4: nullable + 默认 4096。null 视同"用默认"（路由层 transform 成 4096）。

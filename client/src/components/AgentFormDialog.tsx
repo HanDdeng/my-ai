@@ -25,9 +25,9 @@ const FormSchema = z.object({
   model: z.string().min(1, 'modelRequired').max(128),
   // v6.3.2: 改用 maxCompletionTokens 字段名（OpenAI 新 SDK 对齐）；表单层接受 number；
   //   '' 表示"用 core 默认 4096"——提单时 '' 变 null。
-  maxCompletionTokens: z
-    .union([z.literal(''), z.coerce.number().int().min(1).max(32000)])
-    .default(''),
+  // v6.5: 解除 ≤32000 上限（Issue #4）；具体上限由 upstream LLM 决定（OpenAI o1 长输出可达 100K+）。
+  //   DB CHECK、core zod、UI input max 同步放宽。
+  maxCompletionTokens: z.union([z.literal(''), z.coerce.number().int().min(1)]).default(''),
   // v6.4: context window 上限 2_000_000（与 core 端 zod 对齐）。
   //   UI 默认 4096：表单层接受 '' 视为 4096，提交时统一落 4096（不留 null）。
   contextWindow: z
@@ -425,7 +425,6 @@ export function AgentFormDialog(props: AgentFormDialogProps): ReactElement {
                       }
                       placeholder={t('agentForm.field.maxCompletionTokens.placeholder')}
                       min={1}
-                      max={32000}
                       disabled={submitting}
                       aria-label={t('agentForm.field.maxCompletionTokens.label')}
                       style={{

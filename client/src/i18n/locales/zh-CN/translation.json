@@ -159,7 +159,7 @@
       },
       "maxCompletionTokens": {
         "label": "单次回复 Tokens（最大输出）",
-        "placeholder": "默认 4096；范围 1..32000"
+        "placeholder": "默认 4096；不限上限（以 upstream LLM 为准）"
       },
       "contextWindow": {
         "label": "上下文窗口",
@@ -177,7 +177,7 @@
       "nameLength": "名称长度 1..64",
       "baseUrlRequired": "Base URL 必填",
       "modelRequired": "Model 必填",
-      "maxTokensRange": "maxTokens 必须 1..32000",
+      "maxTokensRange": "maxTokens 必须 ≥1",
       "loadFailed": "加载 agent 失败：{{msg}}",
       "notFound": "agent 不存在",
       "saveFailed": "保存失败：{{msg}}",

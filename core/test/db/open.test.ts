@@ -17,7 +17,7 @@ describe('openDatabase', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('首次启动建表 + 写 schema_version=4（v6.4: api_key 字段）', () => {
+  it('首次启动建表 + 写 schema_version=5（v6.5: 解除 max_tokens 上限）', () => {
     const db = openDatabase(dbPath);
 
     // 4 张表都建好
@@ -32,7 +32,7 @@ describe('openDatabase', () => {
 
     // schema_version 写入
     const row = db.prepare('SELECT version FROM schema_version').get() as { version: number };
-    expect(row.version).toBe(4);
+    expect(row.version).toBe(5);
 
     // v6.3.1: agents 表必须包含 context_window 列
     const cols = db.prepare("PRAGMA table_info('agents')").all() as Array<{ name: string }>;
@@ -46,12 +46,12 @@ describe('openDatabase', () => {
     // 二次打开应不抛错
     const db2 = openDatabase(dbPath);
     const row = db2.prepare('SELECT version FROM schema_version').get() as { version: number };
-    expect(row.version).toBe(4);
+    expect(row.version).toBe(5);
   });
 
   it('打开 :memory: 也工作', () => {
     const db = openDatabase(':memory:');
     const row = db.prepare('SELECT version FROM schema_version').get() as { version: number };
-    expect(row.version).toBe(4);
+    expect(row.version).toBe(5);
   });
 });

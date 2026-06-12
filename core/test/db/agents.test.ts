@@ -99,6 +99,18 @@ describe('AgentsDAO', () => {
     expect(dao.get('a-1')?.api_key).toBe('sk-updated');
   });
 
+  it('v6.5: max_tokens 100000 → 写入成功（CHECK 已放宽）', () => {
+    // v6.5: Issue #4 解除 ≤32000 上限（DB CHECK + 客户端 zod + input max 全部放宽为 ≥1）。
+    dao.insert(
+      sample({
+        id: 'a-big',
+        name: 'big',
+        max_tokens: 100_000,
+      }),
+    );
+    expect(dao.get('a-big')?.max_tokens).toBe(100_000);
+  });
+
   it('delete 删行', () => {
     dao.insert(sample());
     dao.delete('a-1');

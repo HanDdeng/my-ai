@@ -162,7 +162,7 @@
       },
       "maxCompletionTokens": {
         "label": "Max Completion Tokens",
-        "placeholder": "Default 4096; range 1..32000"
+        "placeholder": "Default 4096; no upper limit (governed by upstream LLM)"
       },
       "contextWindow": {
         "label": "Context Window",
@@ -180,7 +180,7 @@
       "nameLength": "Name length must be 1..64",
       "baseUrlRequired": "Base URL required",
       "modelRequired": "Model required",
-      "maxTokensRange": "maxTokens must be 1..32000",
+      "maxTokensRange": "maxTokens must be ≥1",
       "loadFailed": "Failed to load agent: {{msg}}",
       "notFound": "agent not found",
       "saveFailed": "Save failed: {{msg}}",
