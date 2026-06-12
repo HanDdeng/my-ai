@@ -15,6 +15,10 @@ const Schema = z.object({
   // 生产环境务必改为具体 origin 列表（多个用逗号分隔）。
   CORS_ORIGINS: z.string().default('*'),
 
+  // v6.5: gateway → core 上游 HTTP 客户端超时（ms）；必须 > core 的 LLM_TIMEOUT_MS。
+  // 默认 640_000 = 10min40s，覆盖大多数 LLM 思考密集型任务。
+  CORE_TIMEOUT_MS: z.coerce.number().int().positive().default(640_000),
+
   // === v3 新增：远程配对与鉴权 ===
   // 配对是否公开：true=自由配对, false=需要配对码解析/或 pair key
   GATEWAY_PAIRING_PUBLIC: z.coerce.boolean().default(false),

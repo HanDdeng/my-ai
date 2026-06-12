@@ -10,6 +10,9 @@ const Schema = z.object({
   // v6.1：LLM 配置下沉到 agents 表（base_url / model / max_tokens / llm_provider）。
   // 仅保留 LLM_API_KEY（env 全局共享，agent 行不存 key）。
   LLM_API_KEY: z.string().optional(),
+  // v6.5: core → LLM 上游请求超时（ms）；必须 < gateway 的 CORE_TIMEOUT_MS。
+  // 默认 600_000 = 10min，覆盖本地 Ollama 大模型推理。
+  LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(600_000),
   // SQLite 文件路径（相对路径相对 cwd）。默认 ./core.db；测试可用 :memory:。
   CORE_DB_PATH: z.string().default('./core.db'),
 });

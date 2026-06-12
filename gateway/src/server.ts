@@ -51,7 +51,8 @@ export async function buildServer(cfg: Config, compat: Compat, authStore: AuthSt
   // 鉴权中间件（白名单放行 + 验 X-Client-Key）
   await app.register(authMiddleware);
 
-  const core = new CoreClient({ baseUrl: cfg.CORE_URL });
+  // v6.5: CoreClient 透传 CORE_TIMEOUT_MS，作为 undici headersTimeout/bodyTimeout。
+  const core = new CoreClient({ baseUrl: cfg.CORE_URL, timeoutMs: cfg.CORE_TIMEOUT_MS });
   app.decorate('core', core);
 
   // 公开 routes

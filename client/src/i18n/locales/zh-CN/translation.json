@@ -198,6 +198,8 @@
     "errors": {
       "sendFailed": "发送失败：{{msg}}",
       "upstream": "上游服务不可用",
+      "upstreamTimeout": "LLM 响应超时。请尝试简化任务，或在 gateway/.env 调大 CORE_TIMEOUT_MS、core/.env 调大 LLM_TIMEOUT_MS。",
+      "upstreamWithReason": "上游服务出错：{{reason}}",
       "network": "网络连不上"
     }
   },

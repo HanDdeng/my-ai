@@ -1,7 +1,7 @@
 // OpenAI 兼容 chat completions 客户端。
 // 走任意 OpenAI 兼容协议服务（Ollama / vLLM / LM Studio / 第三方代理 / OpenAI 公司）。
 // baseUrl 必须含版本路径（如 /v1）；调用方拼接 /chat/completions。
-// Node 20+ 内置 fetch，无新依赖。AbortSignal.timeout 60s 上限防挂死。
+// Node 20+ 内置 fetch，无新依赖。AbortSignal.timeout 可配；默认 600s 上限防挂死。
 // v6.3.2: 改用 OpenAI 新 SDK 字段名：max_completion_tokens（替代 max_tokens）+ reasoning_effort。
 // 老 max_tokens 仍兼容但 OpenAI SDK 0.x 已 deprecated，新 SDK 用 max_completion_tokens。
 // 其他 OpenAI 兼容 provider（vLLM / LM Studio / 第三方代理）可能只支持 max_tokens；
@@ -18,6 +18,8 @@ export type OpenAICompatibleConfig = {
   maxTokens?: number | undefined;
   // v6.3.2: OpenAI o1 / o3 专用思考强度；'none' = 不思考；其他 provider 静默忽略该字段。
   reasoningEffort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | undefined;
+  // v6.5: 请求超时（ms）；缺省 600_000。
+  timeoutMs?: number | undefined;
 };
 
 export class OpenAICompatibleLLMClient implements LLMClient {
@@ -48,7 +50,7 @@ export class OpenAICompatibleLLMClient implements LLMClient {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(this.cfg.timeoutMs ?? 600_000),
       });
     } catch (e) {
       throw new LLMUpstreamError(`fetch failed: ${(e as Error).message}`);

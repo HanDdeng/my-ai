@@ -141,6 +141,11 @@ describe('/v1/sessions/{id}/messages routes', () => {
       payload: { id: 'um', content: 'hello' },
     });
     expect(res.statusCode).toBe(502);
-    expect(res.json()).toEqual({ data: null, code: 502, message: 'upstream_error' });
+    // v6.5: 错误文案带 e.message，宽松匹配 "upstream_error" 前缀。
+    expect(res.json()).toEqual({
+      data: null,
+      code: 502,
+      message: expect.stringMatching(/^upstream_error/),
+    });
   });
 });

@@ -177,10 +177,19 @@ export function ChatDialog({
       setMessages(m =>
         m.map(x => (x.id === tempId ? { ...x, content: `${x.content} (失败)` } : x)),
       );
-      const msg =
-        e instanceof ApiError && e.code === 502
-          ? t('chat.errors.upstream')
-          : t('chat.errors.sendFailed', { msg: e instanceof Error ? e.message : String(e) });
+      // v6.5: 区分 timeout vs 一般 5xx；带原因文案。gateway 502 现在 message 形如
+      //   "upstream_error: <reason>"（如 "upstream_error: fetch failed: The operation was aborted"）。
+      let msg: string;
+      if (e instanceof ApiError && e.code === 502) {
+        const raw = (e.message ?? '').toString();
+        if (/timeout|TIMEOUT|UND_ERR_HEADERS_TIMEOUT|AbortError/i.test(raw)) {
+          msg = t('chat.errors.upstreamTimeout');
+        } else {
+          msg = t('chat.errors.upstreamWithReason', { reason: raw || 'unknown' });
+        }
+      } else {
+        msg = t('chat.errors.sendFailed', { msg: e instanceof Error ? e.message : String(e) });
+      }
       dispatch({ type: 'send-error', error: msg });
     }
   };

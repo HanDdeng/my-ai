@@ -215,8 +215,47 @@ describe('<ChatDialog>', () => {
     await waitFor(() => screen.getByText('发条消息开始对话'));
     fireEvent.change(screen.getByPlaceholderText('输入消息…'), { target: { value: 'hi' } });
     fireEvent.click(screen.getByRole('button', { name: '发送' }));
-    await waitFor(() => expect(screen.getByText(/上游服务不可用/)).toBeInTheDocument());
+    // v6.5: 502 + message 不含 timeout 关键词 → 走 upstreamWithReason 分支。
+    await waitFor(() => expect(screen.getByText(/上游服务出错/)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument();
+  });
+
+  // v6.5: 502 + message 含 timeout 关键词 → 走 upstreamTimeout 分支。
+  it('v6.5: 502 + timeout 关键词 → 显示 LLM 响应超时文案', async () => {
+    vi.mocked(agentsLib.getAgent).mockResolvedValue({
+      id: 'a1',
+      name: 'Echo',
+      description: '',
+      llmProvider: 'openai-compatible',
+      baseUrl: 'http://x',
+      model: 'qwen',
+      maxCompletionTokens: null,
+      apiKey: null,
+      contextWindow: null,
+      enabledApi: false,
+      systemPrompt: '',
+      capabilities: [],
+      createdAt: 't',
+      updatedAt: 't',
+    });
+    vi.mocked(sessionsLib.createSession).mockResolvedValue({ id: 's1' } as never);
+    // v6.5: message 形如 "upstream_error: fetch failed: The operation was aborted"
+    vi.mocked(messagesLib.postMessage).mockRejectedValueOnce(
+      new ApiError(502, 'upstream_error: AbortError'),
+    );
+    render(
+      <ChatDialog
+        agentId="a1"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onAgentDeleted={vi.fn()}
+      />,
+    );
+    await waitFor(() => screen.getByText('发条消息开始对话'));
+    fireEvent.change(screen.getByPlaceholderText('输入消息…'), { target: { value: 'hi' } });
+    fireEvent.click(screen.getByRole('button', { name: '发送' }));
+    await waitFor(() => expect(screen.getByText(/LLM 响应超时/)).toBeInTheDocument());
   });
 
   it('ESC 键 → 触发动画关闭 + 150ms 后 onClose', async () => {

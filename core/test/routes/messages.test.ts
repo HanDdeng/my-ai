@@ -185,7 +185,8 @@ describe('routes /v1/sessions/:id/messages', () => {
         payload: { id: randomUUID(), content: 'hi' },
       });
       expect(res.statusCode).toBe(502);
-      expect(res.json().message).toBe('upstream_error');
+      // v6.5: 错误文案带 e.message，宽松匹配 "upstream_error" 前缀。
+      expect(res.json().message).toMatch(/^upstream_error/);
     });
 
     it('v6.3.1: contextWindow 是 metadata；不进 fetch body（OpenAI 协议不接 num_ctx）', async () => {

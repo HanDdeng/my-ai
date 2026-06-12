@@ -26,6 +26,10 @@ const factories = new Map<Provider, Factory>([
       if (typeof cfg.reasoningEffort === 'string') {
         c.reasoningEffort = cfg.reasoningEffort as OpenAICompatibleConfig['reasoningEffort'];
       }
+      // v6.5: timeoutMs 透传（AbortSignal.timeout 上限；未传走默认 600_000）。
+      if (typeof cfg.timeoutMs === 'number') {
+        c.timeoutMs = cfg.timeoutMs;
+      }
       return new OpenAICompatibleLLMClient(c);
     },
   ],

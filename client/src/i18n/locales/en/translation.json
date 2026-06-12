@@ -201,6 +201,8 @@
     "errors": {
       "sendFailed": "Send failed: {{msg}}",
       "upstream": "Upstream service unavailable",
+      "upstreamTimeout": "LLM response timed out. Try simplifying the task, or raise CORE_TIMEOUT_MS in gateway/.env and LLM_TIMEOUT_MS in core/.env.",
+      "upstreamWithReason": "Upstream error: {{reason}}",
       "network": "Network unreachable"
     }
   },

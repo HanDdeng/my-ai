@@ -2,7 +2,7 @@
 // v6.2 (Option B) 行为：
 //   - 2xx：core 整包 {data, code: 0, message: 'ok'} → 解出 .data 再走 ok() 包装。
 //   - 4xx/5xx：core 整包 {data, code: 4xx/5xx, message: 'xxx'} → 真透传。
-//   - gateway 网络层异常：502 upstream_error。
+//   - gateway 网络层异常：502 upstream_error: <e.message>（v6.5 带原因）。
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { ok, err } from '../response.js';
 import type { CoreClient } from '../clients/core.js';
@@ -22,9 +22,11 @@ export async function messagesRoutes(app: FastifyInstance, core: CoreClient) {
       const { status, body } = await core.listMessages(ck, req.params.id);
       const payload = status < 400 ? ok((body as { data?: unknown })?.data ?? null) : body;
       return reply.code(status).send(payload);
-    } catch (e) {
+    } catch (e: unknown) {
+      // v6.5: 错误文案带 e.message（timeout / 网络错 / 反序列化错 等都能透到 client）。
+      const msg = e instanceof Error ? e.message : 'upstream_error';
       req.log.error({ err: e, sessionId: req.params.id }, 'listMessages failed');
-      return reply.code(502).send(err(502, 'upstream_error'));
+      return reply.code(502).send(err(502, `upstream_error: ${msg}`));
     }
   });
 
@@ -35,9 +37,11 @@ export async function messagesRoutes(app: FastifyInstance, core: CoreClient) {
       const { status, body } = await core.postMessage(ck, req.params.id, req.body);
       const payload = status < 400 ? ok((body as { data?: unknown })?.data ?? null) : body;
       return reply.code(status).send(payload);
-    } catch (e) {
+    } catch (e: unknown) {
+      // v6.5: 同上，带 e.message。
+      const msg = e instanceof Error ? e.message : 'upstream_error';
       req.log.error({ err: e, sessionId: req.params.id }, 'postMessage failed');
-      return reply.code(502).send(err(502, 'upstream_error'));
+      return reply.code(502).send(err(502, `upstream_error: ${msg}`));
     }
   });
 }

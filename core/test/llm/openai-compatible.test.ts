@@ -307,4 +307,36 @@ describe('OpenAICompatibleLLMClient', () => {
       'stream',
     ]);
   });
+
+  // v6.5: 超时可配；timeoutMs 显式传入 → AbortSignal.timeout 用之
+  it('v6.5: timeoutMs 透传到 AbortSignal.timeout', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new OpenAICompatibleLLMClient({
+      baseUrl: 'http://x/v1',
+      model: 'm',
+      timeoutMs: 123_456,
+    });
+    await client.chat({ model: 'm', messages: [{ role: 'user', content: 'hi' }] });
+    expect(timeoutSpy).toHaveBeenCalledWith(123_456);
+  });
+
+  // v6.5: 未传 timeoutMs → 兜底默认 600_000
+  it('v6.5: 未传 timeoutMs → 默认 600_000', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new OpenAICompatibleLLMClient({ baseUrl: 'http://x/v1', model: 'm' });
+    await client.chat({ model: 'm', messages: [{ role: 'user', content: 'hi' }] });
+    expect(timeoutSpy).toHaveBeenCalledWith(600_000);
+  });
 });
