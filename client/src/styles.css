@@ -662,7 +662,8 @@ body {
   align-items: center;
   justify-content: center;
   padding: var(--s-5);
-  z-index: 100;
+  /* v6.5: 高于 .dialog-drawer 的 1000，保证 PairDialog 不被 AgentFormDialog 遮挡。 */
+  z-index: 1100;
   animation: fadeIn var(--t-base) var(--ease);
 }
 
