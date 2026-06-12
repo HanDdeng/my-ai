@@ -16,7 +16,9 @@ export class CoreClient {
 
   constructor(opts: CoreClientOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, '');
-    this.timeoutMs = opts.timeoutMs ?? 15_000;
+    // v6.5: 默认对齐 config.ts CORE_TIMEOUT_MS default（640_000）；server.ts 启动时显式传入，
+    //   未传时这里兜底防止退回到老的 15s 短超时。
+    this.timeoutMs = opts.timeoutMs ?? 640_000;
   }
 
   /**

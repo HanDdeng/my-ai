@@ -22,7 +22,8 @@ const ChatBody = z.object({
 
 export async function chatRoutes(app: FastifyInstance) {
   const agentsDao = (app as unknown as { agents: AgentsDAO }).agents;
-  const cfg = (app as unknown as { config: { LLM_API_KEY?: string } }).config;
+  const cfg = (app as unknown as { config: { LLM_API_KEY?: string; LLM_TIMEOUT_MS?: number } })
+    .config;
 
   app.post('/v1/chat', async req => {
     const parsed = ChatBody.safeParse(req.body);
@@ -43,6 +44,8 @@ export async function chatRoutes(app: FastifyInstance) {
       maxTokens: agent.max_tokens ?? undefined,
       // v6.4: 由请求 body 决定；默认 'none'。
       reasoningEffort: parsed.data.reasoningEffort ?? 'none',
+      // v6.5: 透传 env 配置的 LLM 超时（默认 600_000），让 LLM 客户端用此值做 AbortSignal.timeout。
+      timeoutMs: cfg.LLM_TIMEOUT_MS,
     });
 
     const messages = [];
