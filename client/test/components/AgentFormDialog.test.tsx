@@ -53,8 +53,8 @@ describe('<AgentFormDialog>', () => {
       // v6.3.2: 改用 maxCompletionTokens。
       maxCompletionTokens: 2048,
       contextWindow: 65536,
-      // v6.3.2: 新增 reasoningEffort。
-      reasoningEffort: 'medium',
+      // v6.4: per-agent apiKey。
+      apiKey: 'sk-test-123',
       enabledApi: false,
       systemPrompt: 'sys',
       capabilities: [],
@@ -78,8 +78,8 @@ describe('<AgentFormDialog>', () => {
     expect(screen.getByLabelText('单次回复 Tokens（最大输出）')).toHaveValue(2048);
     // v6.3.1: context window 字段也回填
     expect(screen.getByDisplayValue('65536')).toBeInTheDocument();
-    // v6.3.2: reasoningEffort 字段回填（中度思考（medium））。
-    expect(screen.getByLabelText('思考强度')).toHaveValue('medium');
+    // v6.4: apiKey 字段也回填
+    expect(screen.getByLabelText('API Key')).toHaveValue('sk-test-123');
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '删除' })).toBeInTheDocument();
   });
@@ -99,7 +99,7 @@ describe('<AgentFormDialog>', () => {
     expect(agentsLib.createAgent).not.toHaveBeenCalled();
   });
 
-  it('v6.3.2: 提交成功 → onSaved（body 含 maxCompletionTokens=4096 + contextWindow=null + reasoningEffort="none"）', async () => {
+  it('v6.4: 提交成功 → onSaved（body 含 maxCompletionTokens=4096 + contextWindow=4096 + apiKey=null）', async () => {
     vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
     const onSaved = vi.fn();
     render(
@@ -120,10 +120,31 @@ describe('<AgentFormDialog>', () => {
     const body = call[2] as Record<string, unknown>;
     // v6.3.2: 默认 4096（用户偏好，不再是 null）
     expect(body).toHaveProperty('maxCompletionTokens', 4096);
-    // v6.3.1: 提交 body 应含 contextWindow 字段
-    expect(body).toHaveProperty('contextWindow', null);
-    // v6.3.2: reasoningEffort 默认 'none'
-    expect(body).toHaveProperty('reasoningEffort', 'none');
+    // v6.4: contextWindow 留空统一落 4096（schema 默认；不再 null）
+    expect(body).toHaveProperty('contextWindow', 4096);
+    // v6.4: apiKey 留空 → null（回退到 env LLM_API_KEY）
+    expect(body).toHaveProperty('apiKey', null);
+  });
+
+  it('v6.4: 填写 apiKey → 提交 body 含该值', async () => {
+    vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
+    render(
+      <AgentFormDialog
+        mode="create"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'New' } });
+    fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'qwen3.5:4b' } });
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-mine' } });
+    fireEvent.click(screen.getByRole('button', { name: '创建' }));
+    await waitFor(() => expect(agentsLib.createAgent).toHaveBeenCalled());
+    const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
+    expect(call[2]).toHaveProperty('apiKey', 'sk-mine');
   });
 
   it('v6.3.1: 填写 contextWindow → 提交 body 包含该值', async () => {
@@ -147,7 +168,7 @@ describe('<AgentFormDialog>', () => {
     expect(call[2]).toHaveProperty('contextWindow', 131072);
   });
 
-  it('v6.3.2: reasoningEffort <select> 提供 6 选项 + 选 "high" → body 含 reasoningEffort=high', async () => {
+  it('v6.4: contextWindow 留空 → 提交 body 含 4096（默认值落表）', async () => {
     vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
     render(
       <AgentFormDialog
@@ -158,19 +179,15 @@ describe('<AgentFormDialog>', () => {
         onSaved={vi.fn()}
       />,
     );
-    // 6 个 <option> 都应存在
-    const select = screen.getByLabelText('思考强度') as HTMLSelectElement;
-    const optionValues = Array.from(select.options).map(o => o.value);
-    expect(optionValues).toEqual(['none', 'minimal', 'low', 'medium', 'high', 'xhigh']);
-    // 选 high
-    fireEvent.change(select, { target: { value: 'high' } });
     fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'New' } });
     fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x' } });
-    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'o1' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
+    // 故意把上下文窗口清空
+    fireEvent.change(screen.getByLabelText('上下文窗口'), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
     await waitFor(() => expect(agentsLib.createAgent).toHaveBeenCalled());
     const call = vi.mocked(agentsLib.createAgent).mock.calls[0]!;
-    expect(call[2]).toHaveProperty('reasoningEffort', 'high');
+    expect(call[2]).toHaveProperty('contextWindow', 4096);
   });
 
   it('v6.3.2: maxCompletionTokens 默认值 4096（不是空 / 不是 null）', () => {
@@ -243,8 +260,8 @@ describe('<AgentFormDialog>', () => {
       // v6.3.2: 改用 maxCompletionTokens。
       maxCompletionTokens: null,
       contextWindow: null,
-      // v6.3.2: 新增 reasoningEffort。
-      reasoningEffort: 'none',
+      // v6.4: per-agent apiKey。
+      apiKey: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],

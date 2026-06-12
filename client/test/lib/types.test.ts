@@ -14,7 +14,7 @@ import type {
 } from '@/lib/types.js';
 
 describe('client/src/lib/types', () => {
-  it('Agent 形状：15 字段（含 capabilities 数组 + v6.3.1 contextWindow + v6.3.2 reasoningEffort）', () => {
+  it('Agent 形状：14 字段（v6.4: 加 apiKey，移除 reasoningEffort）', () => {
     const a: Agent = {
       id: 'a1',
       name: 'Echo',
@@ -26,8 +26,8 @@ describe('client/src/lib/types', () => {
       maxCompletionTokens: null,
       // v6.3.1: 新增 contextWindow（云端模型需要区分 per-response maxTokens 与总 context window）
       contextWindow: null,
-      // v6.3.2: 新增 reasoningEffort（OpenAI o1/o3 思考强度）。
-      reasoningEffort: 'none',
+      // v6.4: per-agent 凭据；null = 回退到 env LLM_API_KEY。
+      apiKey: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: ['chat', 'tool'],
@@ -72,8 +72,8 @@ describe('client/src/lib/types', () => {
       maxCompletionTokens: null,
       // v6.3.1: 新增 contextWindow
       contextWindow: null,
-      // v6.3.2: 新增 reasoningEffort。
-      reasoningEffort: 'none',
+      // v6.4: per-agent apiKey。
+      apiKey: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],
@@ -93,9 +93,10 @@ describe('client/src/lib/types', () => {
     expect(b.id).toBe('s1');
   });
 
-  it('PostMessageBody 必含 id + content', () => {
-    const b: PostMessageBody = { id: 'um1', content: 'hello' };
+  it('PostMessageBody 必含 id + content + reasoningEffort（v6.4）', () => {
+    const b: PostMessageBody = { id: 'um1', content: 'hello', reasoningEffort: 'none' };
     expect(b.content).toBe('hello');
+    expect(b.reasoningEffort).toBe('none');
   });
 
   it('PostMessageResponse 必含 userMessage + assistantMessage', () => {

@@ -46,8 +46,8 @@ describe('client/src/lib/agents', () => {
       maxCompletionTokens: null,
       // v6.3.1: 新增 contextWindow
       contextWindow: null,
-      // v6.3.2: 新增 reasoningEffort。
-      reasoningEffort: 'none',
+      // v6.4: per-agent apiKey。
+      apiKey: null,
       enabledApi: false,
       systemPrompt: '',
       capabilities: [],

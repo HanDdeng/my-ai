@@ -45,8 +45,8 @@ describe('<ChatDialog>', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxCompletionTokens: null,
-      // v6.3.2: 新增 reasoningEffort 字段。
-      reasoningEffort: 'none',
+      // v6.4: per-agent apiKey。
+      apiKey: null,
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
@@ -76,8 +76,8 @@ describe('<ChatDialog>', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxCompletionTokens: null,
-      // v6.3.2: 新增 reasoningEffort 字段。
-      reasoningEffort: 'none',
+      // v6.4: per-agent apiKey。
+      apiKey: null,
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
@@ -131,8 +131,8 @@ describe('<ChatDialog>', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxCompletionTokens: null,
-      // v6.3.2: 新增 reasoningEffort 字段。
-      reasoningEffort: 'none',
+      // v6.4: per-agent apiKey。
+      apiKey: null,
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
@@ -179,8 +179,8 @@ describe('<ChatDialog>', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxCompletionTokens: null,
-      // v6.3.2: 新增 reasoningEffort 字段。
-      reasoningEffort: 'none',
+      // v6.4: per-agent apiKey。
+      apiKey: null,
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',
@@ -226,8 +226,8 @@ describe('<ChatDialog>', () => {
       baseUrl: 'http://x',
       model: 'qwen',
       maxCompletionTokens: null,
-      // v6.3.2: 新增 reasoningEffort 字段。
-      reasoningEffort: 'none',
+      // v6.4: per-agent apiKey。
+      apiKey: null,
       contextWindow: null,
       enabledApi: false,
       systemPrompt: '',

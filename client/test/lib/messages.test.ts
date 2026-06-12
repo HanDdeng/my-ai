@@ -42,10 +42,15 @@ describe('client/src/lib/messages', () => {
     });
     const result = await postMessage('http://gw', 'ck', 's1', 'hi');
     expect(spy).toHaveBeenCalled();
+    // v6.4: reasoningEffort 由消息接口传（client 暂时硬编码 'none'）。
     expect(apiFetch).toHaveBeenCalledWith('http://gw/v1/sessions/s1/messages', {
       method: 'POST',
       clientKey: 'ck',
-      body: { id: '00000000-0000-4000-8000-000000000003', content: 'hi' },
+      body: {
+        id: '00000000-0000-4000-8000-000000000003',
+        content: 'hi',
+        reasoningEffort: 'none',
+      },
     });
     expect(result.assistantMessage.content).toBe('echo');
     spy.mockRestore();

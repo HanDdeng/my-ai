@@ -5,6 +5,9 @@
 // v6.3.1: 新增 contextWindow（云端模型需要区分 per-response maxTokens 与总 context window）。
 // v6.3.2: 改用 OpenAI 新 SDK 字段名 maxCompletionTokens（client 端字段名也跟 core 协议对齐）；
 //   新增 reasoningEffort（OpenAI o1/o3 思考强度；其他 provider 静默忽略）。
+// v6.4: 移除 Agent.reasoningEffort（不再持久化；改由 PostMessageBody.reasoningEffort 传参）；
+//   新增 Agent.apiKey（per-agent 凭据；null = 回退到 env LLM_API_KEY）。
+//   contextWindow 类型保持 number | null（schema 默认 4096 落到 DB；UI 空 = 4096）。
 export type Agent = {
   id: string;
   name: string;
@@ -16,8 +19,8 @@ export type Agent = {
   // null = 用 core 默认 4096。范围 1..32000。
   maxCompletionTokens: number | null;
   contextWindow: number | null;
-  // v6.3.2: OpenAI o1/o3 思考强度；null = 默认 'none'（不思考）。
-  reasoningEffort: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | null;
+  // v6.4: per-agent 凭据；null = 回退到 env LLM_API_KEY。
+  apiKey: string | null;
   enabledApi: boolean;
   systemPrompt: string;
   capabilities: string[];
@@ -48,5 +51,10 @@ export type UpdateAgentBody = Partial<
   Omit<Agent, 'id' | 'llmProvider' | 'createdAt' | 'updatedAt'>
 >;
 export type CreateSessionBody = { id: string; agentId: string };
-export type PostMessageBody = { id: string; content: string };
+// v6.4: reasoningEffort 由消息接口传；client 暂时硬编码 'none'，未来做 UI 时从表单拿。
+export type PostMessageBody = {
+  id: string;
+  content: string;
+  reasoningEffort: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+};
 export type PostMessageResponse = { userMessage: Message; assistantMessage: Message };
