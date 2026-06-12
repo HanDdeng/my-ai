@@ -3,8 +3,8 @@
 // v6.1 改造：sessions 入 DB；DTO 行（snake_case）→ API 响应（camelCase）经 rowToSession 转。
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { AgentsDAO } from '../db/agents.js';
-import { SessionsDAO, type SessionRow } from '../db/sessions.js';
+import { type AgentsDAO } from '../db/agents.js';
+import { type SessionsDAO, type SessionRow } from '../db/sessions.js';
 import { HttpError } from '../errors.js';
 
 const CreateSessionBody = z.object({
@@ -29,7 +29,9 @@ export async function sessionRoutes(app: FastifyInstance) {
 
   app.post('/v1/sessions', async (req: FastifyRequest) => {
     const parsed = CreateSessionBody.safeParse(req.body);
-    if (!parsed.success) throw new HttpError(400, 'invalid_body');
+    if (!parsed.success) {
+      throw new HttpError(400, 'invalid_body');
+    }
 
     // 检查 agent 存在
     if (!agentsDao.get(parsed.data.agentId)) {
@@ -38,7 +40,9 @@ export async function sessionRoutes(app: FastifyInstance) {
 
     // clientKey 由 hook 写入
     const clientKey = req.internalClientKey;
-    if (!clientKey) throw new HttpError(401, 'unauthorized');
+    if (!clientKey) {
+      throw new HttpError(401, 'unauthorized');
+    }
 
     const now = new Date().toISOString();
     const row: SessionRow = {
