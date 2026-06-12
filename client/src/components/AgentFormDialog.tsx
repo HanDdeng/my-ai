@@ -36,7 +36,9 @@ const FormSchema = z.object({
   // v6.4: per-agent API key；空 = 回退到 env LLM_API_KEY。
   // v6.5: 前端表单层强制必填（min(1)）— zod 校验失败时 setSubmitError 阻止提交；
   //   旧 agent（apiKey=null）打开编辑时会被强制要求填一次。后端 core 表仍 nullable + env fallback。
-  apiKey: z.string().min(1, 'apiKeyRequired').max(512),
+  // v6.5.1: 先 trim 再 min(1) — 防止纯空白字符串（"   "）绕过必填校验（HTML required 只查 emptiness）。
+  //   trim 转换在 zod safeParse 里自动应用，parsed.data.apiKey 已是 trim 后的值。
+  apiKey: z.string().trim().min(1, 'apiKeyRequired').max(512),
   enabledApi: z.boolean().default(false),
   systemPrompt: z.string().max(8192).default(''),
 });

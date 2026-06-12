@@ -151,6 +151,31 @@ describe('<AgentFormDialog>', () => {
     });
   });
 
+  it('v6.5.1: apiKey 纯空白 → 阻止提交（zod trim+min(1) 防绕过）', async () => {
+    // v6.5.1: HTML required 只查 emptiness → "   " 通过 native 校验；但 zod .trim().min(1)
+    //   会把 "   " 转为 "" 后触发 min(1) 失败 → setSubmitError 提前 return，createAgent 不被调。
+    vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
+    render(
+      <AgentFormDialog
+        mode="create"
+        gatewayUrl="http://gw"
+        clientKey="ck"
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+    // 填必填字段，apiKey 用纯空白（fireEvent.change 绕过 HTML required native 校验）
+    fireEvent.change(screen.getByLabelText('名称'), { target: { value: 'echo' } });
+    fireEvent.change(screen.getByLabelText('基础 URL'), { target: { value: 'http://x/v1' } });
+    fireEvent.change(screen.getByLabelText('模型'), { target: { value: 'm' } });
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: '创建' }));
+    // zod trim+min(1) 拦截 → createAgent 不被调
+    await waitFor(() => {
+      expect(agentsLib.createAgent).not.toHaveBeenCalled();
+    });
+  });
+
   it('v6.4: 填写 apiKey → 提交 body 含该值', async () => {
     vi.mocked(agentsLib.createAgent).mockResolvedValue({} as never);
     render(
