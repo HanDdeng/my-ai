@@ -48,12 +48,16 @@ describe('routes POST /v1/sessions', () => {
   });
 
   it('合法 body → 200 + 写 clientKey', async () => {
-    await app.inject({
+    const agentRes = await app.inject({
       method: 'POST',
       url: '/v1/agents',
       headers: { 'x-internal-client-key': 'ck' },
       payload: { id: 'a-1', name: 'Echo', baseUrl: 'http://x/v1', model: 'm' },
     });
+    if (agentRes.statusCode !== 200) {
+      console.error('agent POST failed:', agentRes.statusCode, agentRes.body);
+    }
+    expect(agentRes.statusCode).toBe(200);
 
     const res = await app.inject({
       method: 'POST',

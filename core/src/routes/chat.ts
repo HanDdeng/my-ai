@@ -1,5 +1,7 @@
 // POST /v1/chat：v1 同步 chat 路由（保留 + 标注后续 评估删除）。
 // v6.1 重写：查 DB 拿 agent → 调 OpenAI 兼容客户端 → 返回 v1 AgentRunOutput 形态。
+// v6.4: apiKey 优先用 agent.api_key，回退到 env LLM_API_KEY；
+//   reasoningEffort 改由请求 body 传参（默认 'none'）；不再读 agent 行。
 // 不依赖 core/src/agent/types.ts（已删）；返回类型内联定义。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -8,10 +10,14 @@ import { createLLMClient } from '../llm/index.js';
 import { LLMUpstreamError } from '../llm/errors.js';
 import { HttpError } from '../errors.js';
 
+const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const;
+
 const ChatBody = z.object({
   agentId: z.string().min(1),
   sessionId: z.string().min(1),
   content: z.string().min(1),
+  // v6.4: 思考强度从请求 body 传；默认 'none'（不思考）。
+  reasoningEffort: z.enum(REASONING_EFFORTS).default('none').optional(),
 });
 
 export async function chatRoutes(app: FastifyInstance) {
@@ -31,11 +37,12 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const llm = createLLMClient(agent.llm_provider, {
       baseUrl: agent.base_url,
-      apiKey: cfg.LLM_API_KEY,
+      // v6.4: per-agent 凭据优先；回退到 env LLM_API_KEY。
+      apiKey: agent.api_key ?? cfg.LLM_API_KEY,
       model: agent.model,
       maxTokens: agent.max_tokens ?? undefined,
-      // v6.3.2: 透传 reasoningEffort（默认 'none'，即不思考；OpenAI o1/o3 用）。
-      reasoningEffort: agent.reasoning_effort ?? 'none',
+      // v6.4: 由请求 body 决定；默认 'none'。
+      reasoningEffort: parsed.data.reasoningEffort ?? 'none',
     });
 
     const messages = [];

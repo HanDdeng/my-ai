@@ -3,6 +3,7 @@
 // 路由层不直接调 SessionsDAO。
 // v6.3.1: PATCH body 新增 contextWindow 字段。
 // v6.3.2: PATCH body 新增 reasoningEffort 字段。
+// v6.4:   PATCH body 新增 apiKey 字段；移除 reasoningEffort 字段（不再持久化）。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type AgentsDAO, type AgentRow } from '../db/agents.js';
@@ -16,12 +17,10 @@ const PatchAgentBody = z
     model: z.string().min(1).max(128).optional(),
     maxTokens: z.number().int().min(1).max(32000).nullable().optional(),
     // v6.3.1: context window；与 maxTokens（per-response）区分。
+    // v6.4 修复：默认 4096 改为 schema 默认，PATCH 时显式 null 也允许。
     contextWindow: z.number().int().min(1).max(2_000_000).nullable().optional(),
-    // v6.3.2: OpenAI o1/o3 思考强度；其他 provider 静默忽略。
-    reasoningEffort: z
-      .enum(['none', 'minimal', 'low', 'medium', 'high', 'xhigh'])
-      .nullable()
-      .optional(),
+    // v6.4: per-agent API key；显式 null 表示清空。
+    apiKey: z.string().min(1).max(512).nullable().optional(),
     enabledApi: z.boolean().optional(),
     systemPrompt: z.string().max(8192).optional(),
     capabilities: z.array(z.string()).optional(),
@@ -38,8 +37,8 @@ function rowToAgent(row: AgentRow) {
     model: row.model,
     maxTokens: row.max_tokens,
     contextWindow: row.context_window,
-    // v6.3.2: 回显 reasoningEffort。
-    reasoningEffort: row.reasoning_effort,
+    // v6.4: 回显 apiKey；reasoningEffort 从契约里移除。
+    apiKey: row.api_key,
     enabledApi: row.enabled_api === 1,
     systemPrompt: row.system_prompt,
     capabilities: JSON.parse(row.capabilities) as string[],
@@ -89,11 +88,12 @@ export async function agentItemRoutes(app: FastifyInstance) {
       fields.max_tokens = parsed.data.maxTokens;
     }
     if (parsed.data.contextWindow !== undefined) {
-      fields.context_window = parsed.data.contextWindow;
+      // v6.4: null 视同"用默认"，统一落 4096。
+      fields.context_window = parsed.data.contextWindow ?? 4096;
     }
-    // v6.3.2: reasoningEffort 允许显式 null（清空）；非 null 时落表。
-    if (parsed.data.reasoningEffort !== undefined) {
-      fields.reasoning_effort = parsed.data.reasoningEffort;
+    // v6.4: apiKey 允许显式 null（清空）；非 null 时落表。
+    if (parsed.data.apiKey !== undefined) {
+      fields.api_key = parsed.data.apiKey;
     }
     if (parsed.data.enabledApi !== undefined) {
       fields.enabled_api = parsed.data.enabledApi ? 1 : 0;

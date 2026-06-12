@@ -133,7 +133,7 @@ describe('routes /v1/agents/:id', () => {
     expect(got?.context_window).toBe(131072);
   });
 
-  it('v6.3.1: PATCH contextWindow = null 允许（清空）', async () => {
+  it('v6.4: PATCH contextWindow = null 落 4096（不再存 null）', async () => {
     await insertEcho();
     const res = await app.inject({
       method: 'PATCH',
@@ -141,7 +141,8 @@ describe('routes /v1/agents/:id', () => {
       payload: { contextWindow: null },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().data.contextWindow).toBeNull();
+    // v6.4: null 视同"用默认"，统一落 4096。
+    expect(res.json().data.contextWindow).toBe(4096);
   });
 
   it('v6.3.1: PATCH contextWindow 越界 → 400', async () => {
@@ -154,43 +155,43 @@ describe('routes /v1/agents/:id', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it('v6.3.2: PATCH reasoningEffort → 持久化', async () => {
+  it('v6.4: PATCH apiKey → 持久化', async () => {
     await insertEcho();
     const res = await app.inject({
       method: 'PATCH',
       url: '/v1/agents/a-1',
-      payload: { reasoningEffort: 'medium' },
+      payload: { apiKey: 'sk-test-medium' },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().data.reasoningEffort).toBe('medium');
+    expect(res.json().data.apiKey).toBe('sk-test-medium');
     const got = (app as unknown as { agents: AgentsDAO }).agents.get('a-1');
-    expect(got?.reasoning_effort).toBe('medium');
+    expect(got?.api_key).toBe('sk-test-medium');
   });
 
-  it('v6.3.2: PATCH reasoningEffort = null 允许（清空）', async () => {
+  it('v6.4: PATCH apiKey = null 允许（清空）', async () => {
     await insertEcho();
     // 先设上
     await app.inject({
       method: 'PATCH',
       url: '/v1/agents/a-1',
-      payload: { reasoningEffort: 'high' },
+      payload: { apiKey: 'sk-test-high' },
     });
     // 再清空
     const res = await app.inject({
       method: 'PATCH',
       url: '/v1/agents/a-1',
-      payload: { reasoningEffort: null },
+      payload: { apiKey: null },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().data.reasoningEffort).toBeNull();
+    expect(res.json().data.apiKey).toBeNull();
   });
 
-  it('v6.3.2: PATCH reasoningEffort 越界 → 400', async () => {
+  it('v6.4: PATCH apiKey 超过 512 字符 → 400', async () => {
     await insertEcho();
     const res = await app.inject({
       method: 'PATCH',
       url: '/v1/agents/a-1',
-      payload: { reasoningEffort: 'bogus' },
+      payload: { apiKey: 'a'.repeat(513) },
     });
     expect(res.statusCode).toBe(400);
   });

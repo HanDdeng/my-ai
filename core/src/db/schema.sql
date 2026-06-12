@@ -1,5 +1,6 @@
 -- v6.1 起步 schema_version=1；v6.3.1 加 context_window → schema_version=2。
 -- v6.3.2 加 reasoning_effort → schema_version=3。
+-- v6.4 加 agents.api_key（per-agent 凭据，nullable，回退到 env LLM_API_KEY） → schema_version=4。
 -- 后续 ALTER TABLE 加新字段；不实现自动迁移。loud fail on schema mismatch。
 -- 首启动时执行；后续启动跳过（靠 schema_version 判定）。
 
@@ -13,6 +14,7 @@ CREATE TABLE IF NOT EXISTS agents (
   max_tokens        INTEGER,
   context_window    INTEGER,
   reasoning_effort  TEXT,                  -- 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' (nullable)
+  api_key           TEXT,                  -- v6.4: per-agent key（nullable；null = 回退到 env LLM_API_KEY）
   enabled_api       INTEGER NOT NULL DEFAULT 0,
   system_prompt     TEXT    NOT NULL DEFAULT '',
   capabilities      TEXT    NOT NULL DEFAULT '[]',

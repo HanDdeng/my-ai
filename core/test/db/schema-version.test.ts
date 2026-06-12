@@ -27,7 +27,7 @@ describe('openDatabase schema_version 异常', () => {
     expect(() => openDatabase(dbPath)).toThrow(/schema version mismatch/);
   });
 
-  it('schema_version 写入非 3 → 启动失败', () => {
+  it('schema_version 写入非 4 → 启动失败', () => {
     // 先用 openDatabase 正常建库
     const db = openDatabase(dbPath);
     db.close();
@@ -37,6 +37,6 @@ describe('openDatabase schema_version 异常', () => {
     corrupt.prepare('UPDATE schema_version SET version = ?').run(99);
     corrupt.close();
 
-    expect(() => openDatabase(dbPath)).toThrow(/schema version mismatch.*expected 3, got 99/);
+    expect(() => openDatabase(dbPath)).toThrow(/schema version mismatch.*expected 4, got 99/);
   });
 });

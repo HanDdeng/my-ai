@@ -1,6 +1,8 @@
 // GET / POST /v1/sessions/{id}/messages。
 // POST 调 OpenAI 兼容 LLM，写 user + assistant 两条消息，返回 { userMessage, assistantMessage }。
 // GET 拉历史。session 不存在 404；LLM upstream 5xx 转 502 upstream_error。
+// v6.4: apiKey 优先用 agent.api_key，回退到 env LLM_API_KEY；
+//   reasoningEffort 改由请求 body 传参（默认 'none'）；不再读 agent 行。
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
@@ -11,9 +13,13 @@ import { createLLMClient } from '../llm/index.js';
 import { LLMUpstreamError } from '../llm/errors.js';
 import { HttpError } from '../errors.js';
 
+const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const;
+
 const PostMessageBody = z.object({
   id: z.string().min(1).max(64),
   content: z.string().min(1),
+  // v6.4: 思考强度由请求体传；默认 'none'（不思考）。
+  reasoningEffort: z.enum(REASONING_EFFORTS).default('none').optional(),
 });
 
 function rowToMessage(row: MessageRow) {
@@ -60,13 +66,14 @@ export async function messageRoutes(app: FastifyInstance) {
     const history = messagesDao.listBySession(sid);
 
     // 构造 LLM 客户端（每次新实例；v6.1 不缓存）。
-    // v6.3.2: 透传 reasoningEffort（默认 'none'，即不思考；OpenAI o1/o3 用）。
+    // v6.4: per-agent 凭据优先；回退到 env LLM_API_KEY；
+    //   reasoningEffort 由请求体决定，默认 'none'。
     const llm = createLLMClient(agent.llm_provider, {
       baseUrl: agent.base_url,
-      apiKey: cfg.LLM_API_KEY,
+      apiKey: agent.api_key ?? cfg.LLM_API_KEY,
       model: agent.model,
       maxTokens: agent.max_tokens ?? undefined,
-      reasoningEffort: agent.reasoning_effort ?? 'none',
+      reasoningEffort: parsed.data.reasoningEffort ?? 'none',
     });
 
     const messages = [];

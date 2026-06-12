@@ -222,13 +222,8 @@ describe('routes /v1/sessions/:id/messages', () => {
       expect(reqBody.num_ctx).toBeUndefined();
     });
 
-    it('v6.3.2: 调 LLM 时 reasoning_effort 写入 body', async () => {
+    it('v6.4: 请求体传 reasoningEffort="high" → 写入 LLM body', async () => {
       await seedAgentAndSession();
-      const agentsDao = (app as unknown as { agents: AgentsDAO }).agents;
-      agentsDao.update('a-1', {
-        reasoning_effort: 'high',
-        updated_at: new Date().toISOString(),
-      });
 
       const fetchMock = vi.fn().mockResolvedValueOnce({
         ok: true,
@@ -240,7 +235,7 @@ describe('routes /v1/sessions/:id/messages', () => {
         method: 'POST',
         url: '/v1/sessions/s-1/messages',
         headers: { 'x-internal-client-key': 'ck' },
-        payload: { id: randomUUID(), content: 'hi' },
+        payload: { id: randomUUID(), content: 'hi', reasoningEffort: 'high' },
       });
       expect(res.statusCode).toBe(200);
       const [, init] = fetchMock.mock.calls[0]!;
@@ -248,9 +243,8 @@ describe('routes /v1/sessions/:id/messages', () => {
       expect(reqBody.reasoning_effort).toBe('high');
     });
 
-    it('v6.3.2: reasoning_effort 未设 → 走 default "none" 写入 body', async () => {
+    it('v6.4: 请求体不传 reasoningEffort → 默认 "none" 写入 body', async () => {
       await seedAgentAndSession();
-      // a-1 初始 reasoning_effort = 'none'（默认）
 
       const fetchMock = vi.fn().mockResolvedValueOnce({
         ok: true,
@@ -267,6 +261,17 @@ describe('routes /v1/sessions/:id/messages', () => {
       const [, init] = fetchMock.mock.calls[0]!;
       const reqBody = JSON.parse((init as RequestInit).body as string);
       expect(reqBody.reasoning_effort).toBe('none');
+    });
+
+    it('v6.4: 请求体传 reasoningEffort 越界 → 400', async () => {
+      await seedAgentAndSession();
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/sessions/s-1/messages',
+        headers: { 'x-internal-client-key': 'ck' },
+        payload: { id: randomUUID(), content: 'hi', reasoningEffort: 'bogus' },
+      });
+      expect(res.statusCode).toBe(400);
     });
 
     it('v6.3.2: 协议体用新字段名 max_completion_tokens（不是 max_tokens）', async () => {

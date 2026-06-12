@@ -17,7 +17,7 @@ describe('openDatabase', () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it('首次启动建表 + 写 schema_version=3（v6.3.2: reasoning_effort 字段）', () => {
+  it('首次启动建表 + 写 schema_version=4（v6.4: api_key 字段）', () => {
     const db = openDatabase(dbPath);
 
     // 4 张表都建好
@@ -32,13 +32,13 @@ describe('openDatabase', () => {
 
     // schema_version 写入
     const row = db.prepare('SELECT version FROM schema_version').get() as { version: number };
-    expect(row.version).toBe(3);
+    expect(row.version).toBe(4);
 
     // v6.3.1: agents 表必须包含 context_window 列
     const cols = db.prepare("PRAGMA table_info('agents')").all() as Array<{ name: string }>;
     expect(cols.map(c => c.name)).toContain('context_window');
-    // v6.3.2: agents 表必须包含 reasoning_effort 列
-    expect(cols.map(c => c.name)).toContain('reasoning_effort');
+    // v6.4: agents 表必须包含 api_key 列（reasoning_effort 列保留在 DB 但 DAO 不再读写）。
+    expect(cols.map(c => c.name)).toContain('api_key');
   });
 
   it('二次启动不重复建表 + 不报错', () => {
@@ -46,12 +46,12 @@ describe('openDatabase', () => {
     // 二次打开应不抛错
     const db2 = openDatabase(dbPath);
     const row = db2.prepare('SELECT version FROM schema_version').get() as { version: number };
-    expect(row.version).toBe(3);
+    expect(row.version).toBe(4);
   });
 
   it('打开 :memory: 也工作', () => {
     const db = openDatabase(':memory:');
     const row = db.prepare('SELECT version FROM schema_version').get() as { version: number };
-    expect(row.version).toBe(3);
+    expect(row.version).toBe(4);
   });
 });

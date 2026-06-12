@@ -53,11 +53,12 @@ describe('routes /v1/agents', () => {
       const body = res.json();
       expect(body.code).toBe(0);
       expect(body.data.name).toBe('Echo');
-      // v6.3.1: 默认 null
-      expect(body.data.contextWindow).toBeNull();
+      // v6.4: 留空 → 4096（schema 默认，不再 null）
+      expect(body.data.contextWindow).toBe(4096);
       // 验证真持久化
       const got = app.agents.get('a-1');
       expect(got?.name).toBe('Echo');
+      expect(got?.context_window).toBe(4096);
     });
 
     it('v6.3.1: 传 contextWindow → 持久化 + 回显', async () => {
@@ -93,7 +94,8 @@ describe('routes /v1/agents', () => {
       expect(res.statusCode).toBe(400);
     });
 
-    it('v6.3.1: contextWindow = null 允许', async () => {
+    it('v6.3.1: contextWindow 显式 = null 也被 zod 拒（schema 不接受 null，落到默认 4096）', async () => {
+      // v6.4 修复：contextWindow 不再 nullable；显式 null 走 zod default 4096。
       const res = await app.inject({
         method: 'POST',
         url: '/v1/agents',
@@ -106,50 +108,54 @@ describe('routes /v1/agents', () => {
         },
       });
       expect(res.statusCode).toBe(200);
-      expect(res.json().data.contextWindow).toBeNull();
+      expect(res.json().data.contextWindow).toBe(4096);
     });
 
-    it('v6.3.2: 不传 reasoningEffort → 默认 "none" 落表 + 回显', async () => {
+    it('v6.4: 不传 apiKey → null 落表 + 回显', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/v1/agents',
-        payload: { id: 'a-5', name: 'NoEffort', baseUrl: 'http://x/v1', model: 'm' },
+        payload: { id: 'a-5', name: 'NoKey', baseUrl: 'http://x/v1', model: 'm' },
       });
       expect(res.statusCode).toBe(200);
-      expect(res.json().data.reasoningEffort).toBe('none');
-      expect(app.agents.get('a-5')?.reasoning_effort).toBe('none');
+      expect(res.json().data.apiKey).toBeNull();
+      expect(app.agents.get('a-5')?.api_key).toBeNull();
     });
 
-    it('v6.3.2: 传 reasoningEffort = "high" → 持久化 + 回显', async () => {
+    it('v6.4: 传 apiKey → 持久化 + 回显', async () => {
       const res = await app.inject({
         method: 'POST',
         url: '/v1/agents',
         payload: {
           id: 'a-6',
-          name: 'HighEffort',
+          name: 'HasKey',
           baseUrl: 'http://x/v1',
-          model: 'o1',
-          reasoningEffort: 'high',
+          model: 'm',
+          apiKey: 'sk-test-123',
         },
       });
       expect(res.statusCode).toBe(200);
-      expect(res.json().data.reasoningEffort).toBe('high');
-      expect(app.agents.get('a-6')?.reasoning_effort).toBe('high');
+      expect(res.json().data.apiKey).toBe('sk-test-123');
+      expect(app.agents.get('a-6')?.api_key).toBe('sk-test-123');
     });
 
-    it('v6.3.2: reasoningEffort 越界值（"bogus"）→ 400', async () => {
+    it('v6.4: 传 reasoningEffort（已废弃字段）→ zod 静默忽略（200）', async () => {
+      // v6.4: reasoningEffort 不再是 agent body 字段（改由消息接口传）。
+      // zod 默认是 strip 模式（未知字段静默忽略），不返回 400。
       const res = await app.inject({
         method: 'POST',
         url: '/v1/agents',
         payload: {
           id: 'a-7',
-          name: 'BadEffort',
+          name: 'OldEffort',
           baseUrl: 'http://x/v1',
           model: 'm',
           reasoningEffort: 'bogus',
         },
       });
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(200);
+      // 回显里不应有 reasoningEffort 字段
+      expect(res.json().data).not.toHaveProperty('reasoningEffort');
     });
 
     it('缺必填字段 → 400 invalid_body', async () => {
