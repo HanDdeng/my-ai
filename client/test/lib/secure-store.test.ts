@@ -8,6 +8,8 @@ const { mockStore, MockStronghold } = vi.hoisted(() => {
   const store: Record<string, Uint8Array> = {};
   class Stronghold {
     static load = async (_path: string, _password: string) => new Stronghold();
+    // v6.5: 模拟 Stronghold.save() 让 saveToTauri/clearFromTauri 的落盘调用不报错。
+    save = async () => undefined;
     async createClient(_name: string) {
       return {
         getStore: () => ({
@@ -72,6 +74,69 @@ describe('secure-store (Tauri / Stronghold)', () => {
     });
     await clearSecureConfig();
     expect(await loadSecureConfig()).toBeNull();
+  });
+});
+
+// ===== v6.5: 持久化断言 =====
+describe('secure-store (Stronghold 落盘)', () => {
+  beforeEach(() => {
+    mockIsTauri = true;
+    Object.keys(mockStore).forEach(k => delete mockStore[k]);
+  });
+
+  it('saveSecureConfig calls stronghold.save() to persist to disk', async () => {
+    const saveSpy = vi.fn().mockResolvedValue(undefined);
+    // 重新 mock Stronghold，让 save() 可被监控
+    vi.doMock('@tauri-apps/plugin-stronghold', () => ({
+      Stronghold: class {
+        static load = async () => new this();
+        save = saveSpy;
+        async loadClient() {
+          throw new Error('not exists');
+        }
+        async createClient() {
+          return {
+            getStore: () => ({
+              insert: async () => {},
+              get: async () => null,
+              remove: async () => null,
+            }),
+          };
+        }
+      },
+    }));
+    vi.resetModules();
+    const mod = await import('@/lib/secure-store.js');
+    await mod.saveSecureConfig({
+      clientKey: 'ck',
+      gatewayUrl: 'http://x',
+      pairKey: null,
+      clientName: null,
+    });
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('clearSecureConfig calls stronghold.save() after remove', async () => {
+    const saveSpy = vi.fn().mockResolvedValue(undefined);
+    vi.doMock('@tauri-apps/plugin-stronghold', () => ({
+      Stronghold: class {
+        static load = async () => new this();
+        save = saveSpy;
+        async loadClient() {
+          return {
+            getStore: () => ({
+              insert: async () => {},
+              get: async () => null,
+              remove: async () => null,
+            }),
+          };
+        }
+      },
+    }));
+    vi.resetModules();
+    const mod = await import('@/lib/secure-store.js');
+    await mod.clearSecureConfig();
+    expect(saveSpy).toHaveBeenCalledTimes(1);
   });
 });
 

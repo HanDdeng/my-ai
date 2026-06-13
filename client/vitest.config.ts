@@ -3,8 +3,18 @@
 // 其它源码模块仍推荐用 test/ 集中放（与构建产物隔离）。
 import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+
+const pkg = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8'),
+) as { version: string };
 
 export default defineConfig({
+  // v6.5: 与 vite.config.ts 同步注入 VITE_APP_VERSION，让 App.tsx 等组件测试中
+  // 也能拿到与构建产物一致的版本号。
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
+  },
   test: {
     environment: 'jsdom',
     include: [

@@ -1,17 +1,15 @@
-// LLM 客户端工厂：按 config 选 provider；新加 provider 只需在此 switch 中增加 case。
+// LLM 客户端入口：v6.1 重构为 createLLMClient(provider, llmConfig)。
+// v1 是 createLLMClient(cfg)，已删除。
+import { getFactory, type Factory, type Provider } from './factory.js';
 import type { LLMClient } from './types.js';
-import { MockLLMClient } from './mock.js';
-import type { Config } from '../config.js';
+import { LLMNotImplementedError } from './errors.js';
 
-/**
- * 根据配置构造 LLM 客户端；当前只支持 mock。
- * openai-compatible 留待后续实现（v1.0 占位）。
- */
-export function createLLMClient(cfg: Config): LLMClient {
-  switch (cfg.LLM_PROVIDER) {
-    case 'mock':
-      return new MockLLMClient();
-    case 'openai-compatible':
-      throw new Error('openai-compatible provider not implemented yet');
+export function createLLMClient(provider: string, llmConfig: Record<string, unknown>): LLMClient {
+  const factory = getFactory(provider as Provider);
+  if (!factory) {
+    throw new LLMNotImplementedError(provider);
   }
+  return factory(llmConfig);
 }
+
+export { getFactory, type Factory, type Provider };

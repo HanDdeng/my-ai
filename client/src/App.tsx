@@ -16,6 +16,9 @@ import { MismatchBanner } from './components/MismatchBanner.js';
 import { PairBanner } from './components/PairBanner.js';
 import { PairDialog } from './components/PairDialog.js';
 import { ThemeToggle } from './components/ThemeToggle.js';
+import { Office, type OfficeDialogKey } from './components/Office.js';
+import { AgentFormDialog } from './components/AgentFormDialog.js';
+import { ChatDialog } from './components/ChatDialog.js';
 import { LanguageSwitcher } from './i18n/switch.js';
 import { loadSecureConfig, clearSecureConfig, type SecureConfig } from './lib/secure-store.js';
 import { randomUUID } from './lib/uuid.js';
@@ -58,6 +61,9 @@ function App() {
   // 首次配对（无 secureConfig）时为 PairDialog 提供稳定的临时 clientKey。
   // 用 useState 初始化函数确保只生成一次，不随 re-render 抖动。
   const [draftKey, setDraftKey] = useState<string>(() => randomUUID());
+  // v6.3: Office 内的对话框控制（null = 无对话框）。保存/删除后通过 refetchKey 触发 Office 重新拉取。
+  const [officeDialog, setOfficeDialog] = useState<OfficeDialogKey | null>(null);
+  const [officeRefetchKey, setOfficeRefetchKey] = useState(0);
 
   // 启动时读 secure config；无则进入 NEED_PAIR。
   useEffect(() => {
@@ -73,7 +79,9 @@ function App() {
           setStatus('NEED_PAIR');
         }
       })
-      .catch(() => {
+      .catch((e: unknown) => {
+        // v6.5: 持久化加载失败时静默吞错会导致诊断无门；显式 log 到控制台便于未来排查。
+        console.error('[my-ai] loadSecureConfig failed:', e);
         if (!cancelled) {
           setStatus('NEED_PAIR');
         }
@@ -124,10 +132,14 @@ function App() {
 
   // 业务 401 被动感知：监听全局 my-ai:unauthorized 事件（由 apiFetch 调用方在 401 时派发）。
   // v3 阶段先用 CustomEvent 解耦；后续可换成 React context / store。
+  // v6.5: 401 时除弹 PairDialog 外，主动关闭已打开的 agent 编辑/聊天侧边栏。
+  //   原因：clientKey 失效后这两个侧边栏的后续请求必 401，留着没意义还会挡 PairDialog；
+  //   z-index 1000（drawer） vs 1100（PairDialog backdrop）能盖住，但用户预期是"先把无效状态清掉"。
   useEffect(() => {
     const onUnauthorized = () => {
       setStatus('NEED_REPAIR');
       setShowDialog(true);
+      setOfficeDialog(null);
     };
     window.addEventListener('my-ai:unauthorized', onUnauthorized);
     return () => window.removeEventListener('my-ai:unauthorized', onUnauthorized);
@@ -194,7 +206,13 @@ function App() {
         <span className="num">v5</span>
         <span>{t('app.subtitle.line1')}</span>
         <span>{t('app.subtitle.sep')}</span>
-        <span>{t('app.subtitle.line2', { version: '0.0.4' })}</span>
+        <span>
+          {t('app.subtitle.line2', {
+            // v6.5: 编译时从 client/package.json 注入（vite.config.ts / vitest.config.ts），
+            //   避免硬编码 "0.0.4" 这种长期不更新的字符串。
+            version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
+          })}
+        </span>
       </p>
 
       {(status === 'NEED_PAIR' || status === 'NEED_REPAIR') && (
@@ -230,6 +248,57 @@ function App() {
           gatewayVersion={version}
           requiredRange={COMPAT.upstream.gateway}
           onDismiss={() => setBannerDismissed(true)}
+        />
+      )}
+
+      {status === 'PAIRED' && secureConfig && (
+        <Office
+          gatewayUrl={secureConfig.gatewayUrl}
+          clientKey={secureConfig.clientKey}
+          refetchKey={officeRefetchKey}
+          onOpenDialog={setOfficeDialog}
+          onRefetch={() => setOfficeRefetchKey(k => k + 1)}
+        />
+      )}
+      {officeDialog?.type === 'create-agent' && secureConfig && (
+        <AgentFormDialog
+          mode="create"
+          gatewayUrl={secureConfig.gatewayUrl}
+          clientKey={secureConfig.clientKey}
+          onClose={() => setOfficeDialog(null)}
+          onSaved={() => {
+            setOfficeDialog(null);
+            setOfficeRefetchKey(k => k + 1);
+          }}
+        />
+      )}
+      {officeDialog?.type === 'edit-agent' && secureConfig && (
+        <AgentFormDialog
+          mode="edit"
+          agentId={officeDialog.agentId}
+          gatewayUrl={secureConfig.gatewayUrl}
+          clientKey={secureConfig.clientKey}
+          onClose={() => setOfficeDialog(null)}
+          onSaved={() => {
+            setOfficeDialog(null);
+            setOfficeRefetchKey(k => k + 1);
+          }}
+          onDeleted={() => {
+            setOfficeDialog(null);
+            setOfficeRefetchKey(k => k + 1);
+          }}
+        />
+      )}
+      {officeDialog?.type === 'chat' && secureConfig && (
+        <ChatDialog
+          agentId={officeDialog.agentId}
+          gatewayUrl={secureConfig.gatewayUrl}
+          clientKey={secureConfig.clientKey}
+          onClose={() => setOfficeDialog(null)}
+          onAgentDeleted={() => {
+            setOfficeDialog(null);
+            setOfficeRefetchKey(k => k + 1);
+          }}
         />
       )}
 

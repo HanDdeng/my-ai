@@ -52,4 +52,20 @@ describe('loadConfig v3 新字段', () => {
     const cfg = loadConfig(baseEnv as never);
     expect(cfg.GATEWAY_DB_PATH).toBe('./gateway.db');
   });
+
+  // v6.5: 新增 CORE_TIMEOUT_MS；默认 640_000 = 10min40s；可被 env 覆盖。
+  it('v6.5: CORE_TIMEOUT_MS 默认 640000，可被 env 覆盖', () => {
+    const def = loadConfig({
+      ...baseEnv,
+      GATEWAY_PAIRING_PUBLIC: 'false',
+      GATEWAY_PAIR_KEY: '',
+    } as never);
+    expect(def.CORE_TIMEOUT_MS).toBe(640_000);
+    const overridden = loadConfig({
+      ...baseEnv,
+      GATEWAY_PAIRING_PUBLIC: 'false',
+      CORE_TIMEOUT_MS: '120000',
+    } as never);
+    expect(overridden.CORE_TIMEOUT_MS).toBe(120_000);
+  });
 });

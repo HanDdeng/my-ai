@@ -1,12 +1,12 @@
 {
   "schema": 1,
   "components": {
-    "client": { "version": "0.0.4" },
-    "gateway": { "version": "0.0.3" },
-    "core": { "version": "0.0.3" }
+    "client": { "version": "0.0.5" },
+    "gateway": { "version": "0.0.4" },
+    "core": { "version": "0.0.4" }
   },
   "compat": {
-    "client": { "gateway": ">=0.0.3 <0.1.0" },
+    "client": { "gateway": ">=0.0.4" },
     "gateway": { "core": ">=0.0.3 <0.1.0" },
     "core": {}
   }

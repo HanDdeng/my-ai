@@ -102,7 +102,8 @@
       "400": "Bad request",
       "401": "Client key invalid or missing",
       "403": "Forbidden",
-      "404": "Resource not found (the token may have expired)",
+      "404": "Resource not found",
+      "409": "Name conflict",
       "500": "Gateway internal error",
       "502": "Upstream service unavailable"
     }
@@ -116,5 +117,105 @@
     "zh": "中",
     "en": "EN",
     "aria": "Switch language, current {{current}}"
+  },
+  "office": {
+    "title": "Virtual Office",
+    "addAgent": "+ New agent",
+    "loading": "Loading…",
+    "error": {
+      "loadAgents": "Failed to load agents: {{msg}}",
+      "retry": "Retry"
+    }
+  },
+  "emptyOffice": {
+    "title": "No agents yet",
+    "message": "Please create one to get started",
+    "cta": "New agent"
+  },
+  "agentCard": {
+    "edit": "✎ Edit",
+    "delete": "⌫ Delete",
+    "deleteConfirm": "Delete \"{{name}}\"?"
+  },
+  "agentForm": {
+    "title": { "create": "New Agent", "edit": "Edit Agent" },
+    "section": { "basic": "Basic", "llm": "LLM Configuration", "system": "System Prompt" },
+    "field": {
+      "name": { "label": "Name", "required": "Required", "placeholder": "e.g. Echo" },
+      "description": {
+        "label": "Description",
+        "placeholder": "One-line description of this agent"
+      },
+      "baseUrl": {
+        "label": "Base URL",
+        "required": "Required",
+        "placeholder": "http://localhost:11434/v1"
+      },
+      "model": {
+        "label": "Model",
+        "required": "Required",
+        "placeholder": "qwen3.5:4b / gpt-4o-mini / qwen2.5:7b"
+      },
+      "apiKey": {
+        "label": "API Key",
+        "placeholder": "Required; for Ollama or no-key endpoints, enter any placeholder"
+      },
+      "maxCompletionTokens": {
+        "label": "Max Completion Tokens",
+        "placeholder": "Default 4096; no upper limit (governed by upstream LLM)"
+      },
+      "contextWindow": {
+        "label": "Context Window",
+        "placeholder": "e.g. 65536 (64K); empty = 4096"
+      },
+      "enabledApi": { "label": "Enabled API", "hint": "Reserved for v6.1; no current behavior" },
+      "systemPrompt": {
+        "label": "System Prompt",
+        "placeholder": "e.g. You are a helpful assistant"
+      }
+    },
+    "actions": { "cancel": "Cancel", "delete": "Delete", "create": "Create", "save": "Save" },
+    "errors": {
+      "nameConflict": "Name already taken",
+      "nameLength": "Name length must be 1..64",
+      "baseUrlRequired": "Base URL required",
+      "modelRequired": "Model required",
+      "maxTokensRange": "maxTokens must be ≥1",
+      "loadFailed": "Failed to load agent: {{msg}}",
+      "notFound": "agent not found",
+      "saveFailed": "Save failed: {{msg}}",
+      "deleteFailed": "Delete failed: {{msg}}",
+      "apiKeyRequired": "API Key required"
+    }
+  },
+  "chat": {
+    "title": "{{name}} · session #{{sid}}",
+    "headerSummary": "{{name}} · {{count}} messages",
+    "placeholder": "Type a message…",
+    "send": "Send",
+    "sending": "Generating…",
+    "cancel": "Cancel",
+    "cancelled": "Cancelled",
+    "empty": "Send a message to start",
+    "agentDeleted": "agent has been deleted",
+    "retry": "Retry",
+    "errors": {
+      "sendFailed": "Send failed: {{msg}}",
+      "upstream": "Upstream service unavailable",
+      "upstreamTimeout": "LLM response timed out. Try simplifying the task, or raise CORE_TIMEOUT_MS in gateway/.env and LLM_TIMEOUT_MS in core/.env.",
+      "upstreamWithReason": "Upstream error: {{reason}}",
+      "network": "Network unreachable"
+    }
+  },
+  "confirm": {
+    "deleteAgent": {
+      "title": "Delete Agent",
+      "message": "This cannot be undone. All sessions and messages will also be deleted.",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    }
+  },
+  "common": {
+    "close": "Close"
   }
 }

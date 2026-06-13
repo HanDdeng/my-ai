@@ -1,9 +1,13 @@
 // App 根组件测试：状态机 + heartbeat + banner 关闭语义 + 配对流程。
 // mock 响应走 v3 新格式：{ data: {ok, service, version, schema}, code, message }
 // secure-store 用 mock 模拟"已配对"/"未配对"两种启动条件。
+//
+// mock 版本号从 COMPAT 派生，避免 matrix range 改动时手工同步测试。
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import i18n from '@/i18n/index.js';
+import { COMPAT } from '@/compat.generated.js';
+import { pickInRange, pickOutOfRange, escapeVersionForRegex } from './_helpers/version-fixture.js';
 
 // vi.mock 会被 hoisted，工厂里用到的引用必须用 vi.hoisted。
 const { mockLoad, mockClear } = vi.hoisted(() => ({
@@ -19,6 +23,11 @@ vi.mock('@/lib/secure-store.js', () => ({
 import App from '@/App.js';
 
 const GATEWAY_URL = 'http://gateway.test';
+const IN_RANGE_VERSION = pickInRange(COMPAT.upstream.gateway);
+const OUT_OF_RANGE_VERSION = pickOutOfRange(COMPAT.upstream.gateway);
+const MISMATCH_TEXT_RE = new RegExp(
+  `^Gateway v${escapeVersionForRegex(OUT_OF_RANGE_VERSION)} 超出`,
+);
 
 // 新格式下的成功响应构造器
 function mockOk(version: string) {
@@ -30,6 +39,32 @@ function mockOk(version: string) {
     }),
     { status: 200 },
   );
+}
+
+// v6.3: Office 渲染后会调 listAgents（GET /v1/agents）。App 状态机测试关心的是
+// handshake 路径，Office 那条路只关心不要让 fetch 抛错。统一返回空数组
+// 让 Office 进入 EmptyOffice 分支。
+function mockAgentList() {
+  return new Response(
+    JSON.stringify({
+      data: [],
+      code: 0,
+      message: 'ok',
+    }),
+    { status: 200 },
+  );
+}
+
+// v6.3: fetch dispatcher — 按 URL 路由 mockOk / mockAgentList。
+// 兼顾旧的"全局 vi.fn(async () => mockOk(...))"用例不破坏。
+function makeFetchRouter(handshakeResponse: () => Response) {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url.includes('/v1/agents')) {
+      return mockAgentList();
+    }
+    return handshakeResponse();
+  });
 }
 
 // 默认 secureConfig：模拟已配对的客户端，跳过 NEED_PAIR。
@@ -47,10 +82,11 @@ describe('App 状态机', () => {
     // 只 fake setInterval，让 heartbeat 可被 advanceTimersByTime 推进；
     // setTimeout 保持真实，这样 testing-library 的 findByText / waitFor 轮询能正常触发。
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
-    // 注入默认 fetch mock：成功 + version 在范围内
+    // 注入默认 fetch mock：成功 + version 在范围内。
+    // v6.3: 走 router 让 /v1/agents 走 AgentList mock，握手路径走 mockOk。
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => mockOk('0.0.3')),
+      makeFetchRouter(() => mockOk(IN_RANGE_VERSION)),
     );
     // 注入 import.meta.env
     vi.stubEnv('VITE_GATEWAY_URL', GATEWAY_URL);
@@ -87,34 +123,34 @@ describe('App 状态机', () => {
   it('fetch 成功 + version out of range → PAIRED + MismatchBanner 显示', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => mockOk('1.0.0')),
+      makeFetchRouter(() => mockOk(OUT_OF_RANGE_VERSION)),
     );
     render(<App />);
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
     expect(await screen.findByText(i18n.t('settings.status.MISMATCH'))).toBeInTheDocument();
-    expect(screen.getByText(/^Gateway v1\.0\.0 超出/)).toBeInTheDocument();
+    expect(screen.getByText(MISMATCH_TEXT_RE)).toBeInTheDocument();
   });
 
   it('点 banner 关闭按钮 → banner 消失，session 内不重亮', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => mockOk('1.0.0')),
+      makeFetchRouter(() => mockOk(OUT_OF_RANGE_VERSION)),
     );
     render(<App />);
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
     });
     fireEvent.click(screen.getByRole('button', { name: i18n.t('mismatch.dismiss') }));
-    expect(screen.queryByText(/^Gateway v1\.0\.0 超出/)).toBeNull();
+    expect(screen.queryByText(MISMATCH_TEXT_RE)).toBeNull();
 
     // 推进 5 min fake timer + 触发 heartbeat
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
     });
     // banner 仍不显示
-    expect(screen.queryByText(/^Gateway v1\.0\.0 超出/)).toBeNull();
+    expect(screen.queryByText(MISMATCH_TEXT_RE)).toBeNull();
   });
 
   it('fetch throw → NEED_REPAIR（Settings 显示"连接失败" + PairBanner 显示）', async () => {
@@ -170,7 +206,7 @@ describe('App 状态机', () => {
   });
 
   it('已配对时点 Settings "测试" → 重跑握手（fetch 再次被调）', async () => {
-    const fetchMock = vi.fn(async () => mockOk('0.0.3'));
+    const fetchMock = makeFetchRouter(() => mockOk(IN_RANGE_VERSION));
     vi.stubGlobal('fetch', fetchMock);
     render(<App />);
     await act(async () => {
@@ -201,5 +237,71 @@ describe('App 状态机', () => {
     // PairBanner 不会自动弹 dialog（需要点"去配对"），点 Settings 的"测试"应直接弹
     fireEvent.click(screen.getByRole('button', { name: i18n.t('settings.test') }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  // v6.5: 客户端 clientKey 过期 → 401 触发时除弹 PairDialog 外，主动关闭已打开的 agent 编辑/聊天侧边栏。
+  // 流程：mock /v1/agents 返回 1 个 agent → 等 AgentCard 渲染 → 点 ✎ 打开 AgentFormDialog → 派发 401 → 验证 drawer 消失。
+  it('v6.5: 401 触发时关闭已打开的 agent 编辑侧边栏（再弹 PairDialog）', async () => {
+    // mock /v1/agents 返回 1 个 stub agent，让 Office 渲染 AgentCard
+    const stubAgent = {
+      id: 'a1',
+      name: 'echo',
+      description: '',
+      llmProvider: 'openai-compatible',
+      baseUrl: 'http://x/v1',
+      model: 'm',
+      maxCompletionTokens: 4096,
+      contextWindow: 4096,
+      apiKey: null,
+      enabledApi: false,
+      systemPrompt: '',
+      capabilities: [],
+      createdAt: 't',
+      updatedAt: 't',
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('/v1/agents') && !url.match(/agents\/[^/]+$/)) {
+          return new Response(JSON.stringify({ data: [stubAgent], code: 0, message: 'ok' }), {
+            status: 200,
+          });
+        }
+        return mockOk(IN_RANGE_VERSION);
+      }),
+    );
+    render(<App />);
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    // 等 AgentCard 渲染，点 ✎ 打开 AgentFormDialog（侧边栏 drawer）
+    const editBtn = await screen.findByLabelText(i18n.t('agentCard.edit'));
+    fireEvent.click(editBtn);
+    const drawer = await screen.findByLabelText(i18n.t('agentForm.title.edit'));
+    expect(drawer).toBeInTheDocument();
+
+    // 派发 401（clientKey 失效场景）
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('my-ai:unauthorized'));
+    });
+    // drawer 关闭，PairDialog 弹出
+    expect(screen.queryByLabelText(i18n.t('agentForm.title.edit'))).toBeNull();
+    expect(screen.getByLabelText(i18n.t('pair.dialog.title'))).toBeInTheDocument();
+  });
+
+  // v6.5: 副标题"客户端 X.X.X"从 client/package.json 注入（vite.config.ts / vitest.config.ts define），
+  //   避免硬编码 "0.0.4" 这种长期不更新的字符串。
+  it('v6.5: 副标题显示当前 client package.json 的版本号（不是硬编码 0.0.4）', async () => {
+    render(<App />);
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    // 实际版本号 = 测试运行时的 client/package.json
+    // v6.5: vitest.config.ts define 注入 VITE_APP_VERSION = package.json.version。
+    const expectedVersion = import.meta.env.VITE_APP_VERSION!;
+    expect(expectedVersion).toBeTruthy();
+    const subtitle = i18n.t('app.subtitle.line2', { version: expectedVersion });
+    expect(await screen.findByText(subtitle)).toBeInTheDocument();
   });
 });

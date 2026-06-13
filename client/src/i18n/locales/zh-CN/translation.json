@@ -1,25 +1,25 @@
 {
   "app": {
     "brand": "my-ai",
-    "title": "GATEWAY PAIR",
-    "titleEm": "PAIR",
+    "title": "网关配对",
+    "titleEm": "配对",
     "subtitle": {
-      "line1": "REMOTE PAIRING & AUTH",
+      "line1": "远程配对与鉴权",
       "sep": "·",
-      "line2": "CLIENT {{version}}"
+      "line2": "客户端 {{version}}"
     },
     "footer": {
-      "copy": "© my-ai · local control",
+      "copy": "© my-ai · 本地控制",
       "date": "━━ {{date}}"
     }
   },
   "settings": {
     "label": "Gateway 状态",
-    "statusHead": "STATUS / GATEWAY",
+    "statusHead": "状态 / 网关",
     "urlAria": "Gateway URL",
     "test": "测试",
     "gatewayLabel": "网关",
-    "versionPrefix": "GATEWAY",
+    "versionPrefix": "网关",
     "status": {
       "PAIRING": "正在测试…",
       "HEALTHY": "配对成功",
@@ -44,22 +44,22 @@
     },
     "dialog": {
       "title": "配对网关",
-      "sub": "PAIRING / STEP 01",
+      "sub": "配对流程 / 第 1 步",
       "fields": {
         "url": {
           "label": "Gateway URL",
-          "req": "REQ",
+          "req": "必填",
           "placeholder": "http://127.0.0.1:8787"
         },
         "pairKey": {
           "label": "Pair Key",
-          "opt": "OPT",
+          "opt": "可选",
           "placeholder": "私有模式凭证",
           "aria": "Pair Key (可选)"
         },
         "name": {
           "label": "客户端名",
-          "opt": "OPT",
+          "opt": "可选",
           "placeholder": "alice-laptop",
           "aria": "客户端名"
         }
@@ -102,19 +102,117 @@
       "400": "请求格式有误",
       "401": "客户端标识无效或缺失",
       "403": "无权限访问",
-      "404": "资源不存在（确认码可能已过期）",
+      "404": "资源不存在",
+      "409": "名称冲突",
       "500": "网关内部错误",
       "502": "上游服务不可用"
     }
   },
   "theme": {
-    "light": "LIGHT",
-    "dark": "DARK",
+    "light": "亮色",
+    "dark": "暗色",
     "ariaCurrent": "当前 {{state}}色主题，点击切换到 {{next}}色"
   },
   "lang": {
     "zh": "中",
-    "en": "EN",
+    "en": "英",
     "aria": "切换语言，当前 {{current}}"
+  },
+  "office": {
+    "title": "虚拟办公室",
+    "addAgent": "+ 新建 agent",
+    "loading": "加载中…",
+    "error": {
+      "loadAgents": "拉取 agent 列表失败：{{msg}}",
+      "retry": "重试"
+    }
+  },
+  "emptyOffice": {
+    "title": "尚无 agent",
+    "message": "请新建一个开始",
+    "cta": "新建 agent"
+  },
+  "agentCard": {
+    "edit": "✎ 编辑",
+    "delete": "⌫ 删除",
+    "deleteConfirm": "确定删除 \"{{name}}\" 吗？"
+  },
+  "agentForm": {
+    "title": { "create": "新建 Agent", "edit": "编辑 Agent" },
+    "section": { "basic": "基础", "llm": "LLM 配置", "system": "系统提示" },
+    "field": {
+      "name": { "label": "名称", "required": "必填", "placeholder": "例如：Echo" },
+      "description": { "label": "描述", "placeholder": "一句话说明这个 agent 的用途" },
+      "baseUrl": {
+        "label": "基础 URL",
+        "required": "必填",
+        "placeholder": "http://localhost:11434/v1"
+      },
+      "model": {
+        "label": "模型",
+        "required": "必填",
+        "placeholder": "qwen3.5:4b / gpt-4o-mini / qwen2.5:7b"
+      },
+      "apiKey": {
+        "label": "API Key",
+        "placeholder": "必填；Ollama 等无 key 场景填任意占位符"
+      },
+      "maxCompletionTokens": {
+        "label": "单次回复 Tokens（最大输出）",
+        "placeholder": "默认 4096；不限上限（以 upstream LLM 为准）"
+      },
+      "contextWindow": {
+        "label": "上下文窗口",
+        "placeholder": "例如 65536 (64K)；留空 = 4096"
+      },
+      "enabledApi": { "label": "启用 API", "hint": "v6.1 预留；不影响当前行为" },
+      "systemPrompt": {
+        "label": "系统提示",
+        "placeholder": "例如：你是一个有帮助的助手"
+      }
+    },
+    "actions": { "cancel": "取消", "delete": "删除", "create": "创建", "save": "保存" },
+    "errors": {
+      "nameConflict": "名称已被占用",
+      "nameLength": "名称长度 1..64",
+      "baseUrlRequired": "Base URL 必填",
+      "modelRequired": "Model 必填",
+      "maxTokensRange": "maxTokens 必须 ≥1",
+      "loadFailed": "加载 agent 失败：{{msg}}",
+      "notFound": "agent 不存在",
+      "saveFailed": "保存失败：{{msg}}",
+      "deleteFailed": "删除失败：{{msg}}",
+      "apiKeyRequired": "API Key 必填"
+    }
+  },
+  "chat": {
+    "title": "{{name}} · session #{{sid}}",
+    "headerSummary": "{{name}} · {{count}} 条消息",
+    "placeholder": "输入消息…",
+    "send": "发送",
+    "sending": "生成中…",
+    "cancel": "取消",
+    "cancelled": "已取消",
+    "empty": "发条消息开始对话",
+    "agentDeleted": "agent 已被删除",
+    "retry": "重试",
+    "errors": {
+      "sendFailed": "发送失败：{{msg}}",
+      "upstream": "上游服务不可用",
+      "upstreamTimeout": "LLM 响应超时。请尝试简化任务，或在 gateway/.env 调大 CORE_TIMEOUT_MS、core/.env 调大 LLM_TIMEOUT_MS。",
+      "upstreamWithReason": "上游服务出错：{{reason}}",
+      "network": "网络连不上"
+    }
+  },
+  "confirm": {
+    "deleteAgent": {
+      "title": "删除 Agent",
+      "message": "该操作不可撤销，所有会话和消息也会被删除。",
+      "confirm": "删除",
+      "cancel": "取消"
+    }
+  },
+  "common": {
+    "close": "关闭"
   }
 }

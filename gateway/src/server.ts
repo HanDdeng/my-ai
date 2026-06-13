@@ -9,6 +9,8 @@ import { createLogger } from './logger.js';
 import { CoreClient } from './clients/core.js';
 import { healthRoutes } from './routes/health.js';
 import { agentRoutes } from './routes/agents.js';
+import { sessionRoutes } from './routes/sessions.js';
+import { messagesRoutes } from './routes/messages.js';
 import { pairRoutes } from './routes/pair.js';
 import { pairStatusRoutes } from './routes/pair-status.js';
 import { pairResolveRoutes } from './routes/internal/pair-resolve.js';
@@ -49,7 +51,8 @@ export async function buildServer(cfg: Config, compat: Compat, authStore: AuthSt
   // 鉴权中间件（白名单放行 + 验 X-Client-Key）
   await app.register(authMiddleware);
 
-  const core = new CoreClient({ baseUrl: cfg.CORE_URL });
+  // v6.5: CoreClient 透传 CORE_TIMEOUT_MS，作为 undici headersTimeout/bodyTimeout。
+  const core = new CoreClient({ baseUrl: cfg.CORE_URL, timeoutMs: cfg.CORE_TIMEOUT_MS });
   app.decorate('core', core);
 
   // 公开 routes
@@ -64,6 +67,8 @@ export async function buildServer(cfg: Config, compat: Compat, authStore: AuthSt
   // 业务 routes（需鉴权）
   await app.register(async instance => {
     await agentRoutes(instance, core);
+    await sessionRoutes(instance, core);
+    await messagesRoutes(instance, core);
   });
 
   // 全局错误兜底：避免 5xx 漏出去时把栈暴露给客户端。

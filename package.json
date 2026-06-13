@@ -11,6 +11,7 @@
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
     "check:compat": "node scripts/check-compat-matrix.mjs versions/compat-matrix.json",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "format": "prettier --write .",
@@ -19,6 +20,7 @@
     "clean": "pnpm -r exec rimraf dist node_modules .turbo",
     "setup": "node scripts/setup.mjs",
     "sync:compat": "node scripts/sync-compat.mjs",
+    "sync:versions": "node scripts/sync-versions.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
