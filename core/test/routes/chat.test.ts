@@ -29,7 +29,11 @@ describe('routes POST /v1/chat (v1 compat)', () => {
       return reply.code(500).send({ data: null, code: 500, message: 'internal_error' });
     });
     (app as unknown as { agents: AgentsDAO }).agents = agents;
-    (app as unknown as { config: { LLM_API_KEY?: string | undefined } }).config = {
+    (
+      app as unknown as {
+        config: { LLM_API_KEY?: string | undefined; LLM_TIMEOUT_MS?: number };
+      }
+    ).config = {
       LLM_API_KEY: undefined,
     };
     // /v1/chat 是 v1 公共端点（v5 client 兼容），不走内部鉴权。
@@ -93,5 +97,45 @@ describe('routes POST /v1/chat (v1 compat)', () => {
       payload: { agentId: 'a' },
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('v6.5: chat 路由透传 cfg.LLM_TIMEOUT_MS 到 LLM client (AbortSignal.timeout)', async () => {
+    // 准备 agent（POST /v1/agents）
+    await app.inject({
+      method: 'POST',
+      url: '/v1/agents',
+      headers: { 'x-internal-client-key': 'ck' },
+      payload: { id: 'a-tm', name: 'tm-agent', baseUrl: 'http://x/v1', model: 'm' },
+    });
+
+    // 设定 LLM_TIMEOUT_MS sentinel：999_999 与任何 default 都不撞。
+    (
+      app as unknown as { config: { LLM_API_KEY?: string; LLM_TIMEOUT_MS?: number } }
+    ).config.LLM_TIMEOUT_MS = 999_999;
+
+    // spy AbortSignal.timeout：openai-compatible.ts 在 fetch 时调
+    //   signal: AbortSignal.timeout(this.cfg.timeoutMs ?? 600_000)
+    // 捕获所有入参，第一个非 undefined 的数值就是 timeoutMs 透传值。
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+
+    // mock fetch 返回 200 + 一个 LLM reply
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/chat',
+      payload: { agentId: 'a-tm', sessionId: 's-tm', content: 'hi' },
+    });
+    expect(res.statusCode).toBe(200);
+
+    // 断言 AbortSignal.timeout 被以 999_999 调用过 → cfg.LLM_TIMEOUT_MS 真到了 LLM client。
+    const calls = timeoutSpy.mock.calls.filter(c => typeof c[0] === 'number');
+    expect(calls.some(c => c[0] === 999_999)).toBe(true);
+
+    timeoutSpy.mockRestore();
   });
 });
