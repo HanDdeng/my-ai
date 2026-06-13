@@ -81,7 +81,7 @@ pnpm --filter core run dev
 | `llm_provider`  | TEXT      | 固定 `openai-compatible`（v6.1 CHECK 锁死）       |
 | `base_url`      | TEXT      | 1..512 chars；**必须含版本路径**（如 `/v1` 后缀） |
 | `model`         | TEXT      | 1..128 chars                                      |
-| `max_tokens`    | INTEGER   | NULL 或 1..32000                                  |
+| `max_tokens`    | INTEGER   | NULL 或 ≥1                                        |
 | `enabled_api`   | INTEGER   | 0 或 1（**v6.1 预留字段**，core 不消费）          |
 | `system_prompt` | TEXT      | 0..8192 chars，默认 `''`                          |
 | `capabilities`  | TEXT JSON | 灵活 JSON 数组                                    |
@@ -96,11 +96,13 @@ src/
   logger.ts                # pino
   errors.ts                # HttpError 结构化错误
   db/
-    schema.sql             # 4 表 DDL（agents / sessions / messages / schema_version）
-    index.ts               # openDatabase + schema_version 检查
+    schema.ts              # SCHEMA_SQL 内联常量（build-safe；原 schema.sql 保留作 archaeology）
+    index.ts               # openDatabase + schema_version 检查 + migration runner
     agents.ts              # AgentsDAO（CRUD + UNIQUE 冲突）
     sessions.ts            # SessionsDAO（CRUD + listByAgent / listByClientKey）
     messages.ts            # MessagesDAO（按 id 字典序）
+    migrations/
+      v4-to-v5.ts          # MIGRATION_4_TO_5_SQL 内联常量（build-safe；原 0005_relax_max_tokens.sql 保留作 schema snapshot）
   llm/
     types.ts               # LLMClient / ChatMessage / ChatRequest / ChatResponse
     factory.ts             # Map<provider, factory> 注册表
@@ -145,7 +147,7 @@ client → gateway (X-Client-Key 鉴权) → core (X-Internal-Client-Key)
 - [ ] session 标题自动取首条消息前 N 字（v6.1 `title` 留空）
 - [ ] context window 滑动 / token 限制（v6.1 全部历史塞 LLM）
 - [ ] LLM 客户端缓存预热（v6.1 每次新实例；后续按 `agent.id` LRU 缓存）
-- [ ] DB migration 工具（v6.1 `schema_version` 表起步 v=1；后续 ALTER TABLE 需迁移工具）
+- [x] DB migration 工具（v6.5 引入渐进 runner：MIGRATIONS[N] 把 schema_version=N 升到 N+1）
 - [ ] agent 软删除 / archive / 启用-停用开关（v6.1 真删 CASCADE）
 - [ ] agent 标签 / 分组 / 搜索
 - [ ] messages 分页（v6.1 一次性返回 session 全部 messages）
