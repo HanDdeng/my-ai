@@ -326,3 +326,18 @@ describe('CoreClient 错误码透传（4xx/5xx 整包）', () => {
     expect(result.body).toEqual({ data: null, code: 502, message: 'upstream_error' });
   });
 });
+
+describe('CoreClient timeoutMs default (v6.5)', () => {
+  // v6.5: 不传 timeoutMs 时 default 640_000，对齐 config.ts CORE_TIMEOUT_MS。
+  //   server.ts 启动时显式传入；这里是兜底：未传时绝不能退回到老的 15_000。
+  it('v6.5: CoreClient 不传 timeoutMs 时 default 640_000', () => {
+    const c = new CoreClient({ baseUrl });
+    // 私有字段直读：契约测试，锁 default 不会悄悄被改回 15_000。
+    expect((c as unknown as { timeoutMs: number }).timeoutMs).toBe(640_000);
+  });
+
+  it('v6.5: CoreClient 显式传 timeoutMs 时使用传入值（不落 default）', () => {
+    const c = new CoreClient({ baseUrl, timeoutMs: 12_345 });
+    expect((c as unknown as { timeoutMs: number }).timeoutMs).toBe(12_345);
+  });
+});
