@@ -125,4 +125,74 @@ describe('openDatabase schema_version 异常', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('v6.5: migration 失败时抛错 + schema_version 不变（不静默半状态）', () => {
+    // v6.5: index.ts 加了 try/catch + 显式 ROLLBACK。
+    //   用一个"半迁移"状态触发 catch：手动建 schema_version=4 + 一张同名的 agents_new，
+    //   让 4→5 migration 里的 CREATE TABLE agents_new 撞名失败。
+    //   断言：
+    //     a) openDatabase 抛出 migration 4→5 failed 错误
+    //     b) schema_version 仍为 4（外层 UPDATE 没被执行；ROLLBACK 真的回滚了事务）
+    const dir = mkdtempSync(join(tmpdir(), 'core-mig-fail-'));
+    const path = join(dir, 'fail.db');
+    try {
+      const seed = new Database(path);
+      seed.pragma('journal_mode = WAL');
+      seed.pragma('foreign_keys = ON');
+      seed.exec(`
+        CREATE TABLE agents (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL UNIQUE,
+          description TEXT NOT NULL DEFAULT '',
+          llm_provider TEXT NOT NULL DEFAULT 'openai-compatible',
+          base_url TEXT NOT NULL,
+          model TEXT NOT NULL,
+          max_tokens INTEGER,
+          context_window INTEGER,
+          reasoning_effort TEXT,
+          api_key TEXT,
+          enabled_api INTEGER NOT NULL DEFAULT 0,
+          system_prompt TEXT NOT NULL DEFAULT '',
+          capabilities TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          CHECK (llm_provider = 'openai-compatible'),
+          CHECK (max_tokens IS NULL OR (max_tokens >= 1 AND max_tokens <= 32000)),
+          CHECK (length(name) > 0 AND length(name) <= 64)
+        );
+        CREATE UNIQUE INDEX idx_agents_name ON agents(name);
+        CREATE TABLE sessions (
+          id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, client_key TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        );
+        CREATE TABLE messages (
+          id TEXT PRIMARY KEY, session_id TEXT NOT NULL, role TEXT NOT NULL,
+          content TEXT NOT NULL, created_at TEXT NOT NULL
+        );
+        -- 关键：先建一张同名的 agents_new 模拟"半迁移"状态
+        -- 这样 4→5 migration 的 CREATE TABLE agents_new 会撞名失败
+        CREATE TABLE agents_new (id TEXT PRIMARY KEY);
+        CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
+        INSERT INTO schema_version (version, applied_at) VALUES (4, '2026-06-10T00:00:00.000Z');
+      `);
+      seed.close();
+
+      // 触发 4→5 migration → CREATE TABLE agents_new 撞名 → catch 路径
+      expect(() => openDatabase(path)).toThrow(/migration 4 → 5 failed/);
+
+      // 验证 schema_version 仍是 4：说明外层 UPDATE 没被执行；
+      //   ROLLBACK 把整个 BEGIN TRANSACTION 块回滚（不留下半迁移状态）。
+      const check = new Database(path, { readonly: true });
+      try {
+        const row = check.prepare('SELECT version FROM schema_version').get() as
+          | { version: number }
+          | undefined;
+        expect(row?.version).toBe(4);
+      } finally {
+        check.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
