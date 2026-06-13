@@ -289,4 +289,19 @@ describe('App 状态机', () => {
     expect(screen.queryByLabelText(i18n.t('agentForm.title.edit'))).toBeNull();
     expect(screen.getByLabelText(i18n.t('pair.dialog.title'))).toBeInTheDocument();
   });
+
+  // v6.5: 副标题"客户端 X.X.X"从 client/package.json 注入（vite.config.ts / vitest.config.ts define），
+  //   避免硬编码 "0.0.4" 这种长期不更新的字符串。
+  it('v6.5: 副标题显示当前 client package.json 的版本号（不是硬编码 0.0.4）', async () => {
+    render(<App />);
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    // 实际版本号 = 测试运行时的 client/package.json
+    // v6.5: vitest.config.ts define 注入 VITE_APP_VERSION = package.json.version。
+    const expectedVersion = import.meta.env.VITE_APP_VERSION!;
+    expect(expectedVersion).toBeTruthy();
+    const subtitle = i18n.t('app.subtitle.line2', { version: expectedVersion });
+    expect(await screen.findByText(subtitle)).toBeInTheDocument();
+  });
 });

@@ -206,7 +206,13 @@ function App() {
         <span className="num">v5</span>
         <span>{t('app.subtitle.line1')}</span>
         <span>{t('app.subtitle.sep')}</span>
-        <span>{t('app.subtitle.line2', { version: '0.0.4' })}</span>
+        <span>
+          {t('app.subtitle.line2', {
+            // v6.5: 编译时从 client/package.json 注入（vite.config.ts / vitest.config.ts），
+            //   避免硬编码 "0.0.4" 这种长期不更新的字符串。
+            version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
+          })}
+        </span>
       </p>
 
       {(status === 'NEED_PAIR' || status === 'NEED_REPAIR') && (
