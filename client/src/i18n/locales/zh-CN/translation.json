@@ -187,6 +187,7 @@
   },
   "chat": {
     "title": "{{name}} · session #{{sid}}",
+    "headerSummary": "{{name}} · {{count}} 条消息",
     "placeholder": "输入消息…",
     "send": "发送",
     "sending": "生成中…",

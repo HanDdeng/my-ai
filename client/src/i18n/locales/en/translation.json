@@ -190,6 +190,7 @@
   },
   "chat": {
     "title": "{{name}} · session #{{sid}}",
+    "headerSummary": "{{name}} · {{count}} messages",
     "placeholder": "Type a message…",
     "send": "Send",
     "sending": "Generating…",

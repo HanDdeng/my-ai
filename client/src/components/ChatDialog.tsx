@@ -247,7 +247,9 @@ export function ChatDialog({
           }}
         >
           <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-            {agent ? `${agent.name} · ${messages.length} messages` : t('chat.sending')}
+            {agent
+              ? t('chat.headerSummary', { name: agent.name, count: messages.length })
+              : t('chat.sending')}
           </span>
           <button
             type="button"

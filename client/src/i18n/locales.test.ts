@@ -48,6 +48,10 @@ describe('v6.5: theme / 主页 / 配对弹窗 / lang 标签中文化', () => {
     expect(zhCN.lang.en).toBe('英');
   });
 
+  it('chat.headerSummary zh-CN 文本（v6.5 增量：聊天侧边栏顶部 "{{name}} · N 条消息"）', () => {
+    expect(zhCN.chat.headerSummary).toBe('{{name}} · {{count}} 条消息');
+  });
+
   // 防御：英文 locale 不应该被中文化污染（双向锁）。
   it('英文 locale 保持原值（v6.5 改动不影响 en）', () => {
     expect(en.theme.light).toBe('LIGHT');
@@ -58,5 +62,6 @@ describe('v6.5: theme / 主页 / 配对弹窗 / lang 标签中文化', () => {
     expect(en.pair.dialog.fields.url.req).toBe('REQ');
     expect(en.pair.dialog.fields.pairKey.opt).toBe('OPT');
     expect(en.lang.en).toBe('EN');
+    expect(en.chat.headerSummary).toBe('{{name}} · {{count}} messages');
   });
 });
