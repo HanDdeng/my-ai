@@ -132,10 +132,14 @@ function App() {
 
   // 业务 401 被动感知：监听全局 my-ai:unauthorized 事件（由 apiFetch 调用方在 401 时派发）。
   // v3 阶段先用 CustomEvent 解耦；后续可换成 React context / store。
+  // v6.5: 401 时除弹 PairDialog 外，主动关闭已打开的 agent 编辑/聊天侧边栏。
+  //   原因：clientKey 失效后这两个侧边栏的后续请求必 401，留着没意义还会挡 PairDialog；
+  //   z-index 1000（drawer） vs 1100（PairDialog backdrop）能盖住，但用户预期是"先把无效状态清掉"。
   useEffect(() => {
     const onUnauthorized = () => {
       setStatus('NEED_REPAIR');
       setShowDialog(true);
+      setOfficeDialog(null);
     };
     window.addEventListener('my-ai:unauthorized', onUnauthorized);
     return () => window.removeEventListener('my-ai:unauthorized', onUnauthorized);

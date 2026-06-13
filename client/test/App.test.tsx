@@ -238,4 +238,55 @@ describe('App 状态机', () => {
     fireEvent.click(screen.getByRole('button', { name: i18n.t('settings.test') }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
+
+  // v6.5: 客户端 clientKey 过期 → 401 触发时除弹 PairDialog 外，主动关闭已打开的 agent 编辑/聊天侧边栏。
+  // 流程：mock /v1/agents 返回 1 个 agent → 等 AgentCard 渲染 → 点 ✎ 打开 AgentFormDialog → 派发 401 → 验证 drawer 消失。
+  it('v6.5: 401 触发时关闭已打开的 agent 编辑侧边栏（再弹 PairDialog）', async () => {
+    // mock /v1/agents 返回 1 个 stub agent，让 Office 渲染 AgentCard
+    const stubAgent = {
+      id: 'a1',
+      name: 'echo',
+      description: '',
+      llmProvider: 'openai-compatible',
+      baseUrl: 'http://x/v1',
+      model: 'm',
+      maxCompletionTokens: 4096,
+      contextWindow: 4096,
+      apiKey: null,
+      enabledApi: false,
+      systemPrompt: '',
+      capabilities: [],
+      createdAt: 't',
+      updatedAt: 't',
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url.includes('/v1/agents') && !url.match(/agents\/[^/]+$/)) {
+          return new Response(JSON.stringify({ data: [stubAgent], code: 0, message: 'ok' }), {
+            status: 200,
+          });
+        }
+        return mockOk(IN_RANGE_VERSION);
+      }),
+    );
+    render(<App />);
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    // 等 AgentCard 渲染，点 ✎ 打开 AgentFormDialog（侧边栏 drawer）
+    const editBtn = await screen.findByLabelText(i18n.t('agentCard.edit'));
+    fireEvent.click(editBtn);
+    const drawer = await screen.findByLabelText(i18n.t('agentForm.title.edit'));
+    expect(drawer).toBeInTheDocument();
+
+    // 派发 401（clientKey 失效场景）
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('my-ai:unauthorized'));
+    });
+    // drawer 关闭，PairDialog 弹出
+    expect(screen.queryByLabelText(i18n.t('agentForm.title.edit'))).toBeNull();
+    expect(screen.getByLabelText(i18n.t('pair.dialog.title'))).toBeInTheDocument();
+  });
 });
